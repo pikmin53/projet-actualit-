@@ -1,0 +1,21 @@
+[
+  { "name": "Le Monde", "homepage": "https://www.lemonde.fr", "rssUrl": "https://www.lemonde.fr/rss/une.xml", "country": "FR", "language": "fr" },
+  { "name": "France 24 (FR)", "homepage": "https://www.france24.com/fr/", "rssUrl": "https://www.france24.com/fr/rss", "country": "FR", "language": "fr" },
+  { "name": "France Info", "homepage": "https://www.francetvinfo.fr", "rssUrl": "https://www.francetvinfo.fr/titres.rss", "country": "FR", "language": "fr" },
+  { "name": "Le Figaro", "homepage": "https://www.lefigaro.fr", "rssUrl": "https://www.lefigaro.fr/rss/figaro_actualites.xml", "country": "FR", "language": "fr" },
+  { "name": "BBC World", "homepage": "https://www.bbc.com/news/world", "rssUrl": "http://feeds.bbci.co.uk/news/world/rss.xml", "country": "GB", "language": "en" },
+  { "name": "The Guardian World", "homepage": "https://www.theguardian.com/world", "rssUrl": "https://www.theguardian.com/world/rss", "country": "GB", "language": "en" },
+  { "name": "The Guardian Environment", "homepage": "https://www.theguardian.com/environment", "rssUrl": "https://www.theguardian.com/environment/rss", "country": "GB", "language": "en" },
+  { "name": "The Guardian Technology", "homepage": "https://www.theguardian.com/technology", "rssUrl": "https://www.theguardian.com/technology/rss", "country": "GB", "language": "en" },
+  { "name": "The Guardian Politics", "homepage": "https://www.theguardian.com/politics", "rssUrl": "https://www.theguardian.com/politics/rss", "country": "GB", "language": "en" },
+  { "name": "The Guardian Business", "homepage": "https://www.theguardian.com/business", "rssUrl": "https://www.theguardian.com/business/rss", "country": "GB", "language": "en" },
+  { "name": "NYTimes World", "homepage": "https://www.nytimes.com/section/world", "rssUrl": "https://rss.nytimes.com/services/xml/rss/nyt/World.xml", "country": "US", "language": "en" },
+  { "name": "NYTimes Technology", "homepage": "https://www.nytimes.com/section/technology", "rssUrl": "https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml", "country": "US", "language": "en" },
+  { "name": "NPR News", "homepage": "https://www.npr.org", "rssUrl": "https://feeds.npr.org/1001/rss.xml", "country": "US", "language": "en" },
+  { "name": "Al Jazeera English", "homepage": "https://www.aljazeera.com", "rssUrl": "https://www.aljazeera.com/xml/rss/all.xml", "country": "QA", "language": "en" },
+  { "name": "Deutsche Welle (EN)", "homepage": "https://www.dw.com/en", "rssUrl": "https://rss.dw.com/rdf/rss-en-all", "country": "DE", "language": "en" },
+  { "name": "Euronews", "homepage": "https://www.euronews.com", "rssUrl": "https://www.euronews.com/rss?level=theme&name=news", "country": "FR", "language": "en" },
+  { "name": "Japan Times", "homepage": "https://www.japantimes.co.jp", "rssUrl": "https://www.japantimes.co.jp/feed/", "country": "JP", "language": "en" },
+  { "name": "TechCrunch", "homepage": "https://techcrunch.com", "rssUrl": "https://techcrunch.com/feed/", "country": "US", "language": "en" },
+  { "name": "Ars Technica", "homepage": "https://arstechnica.com", "rssUrl": "https://feeds.arstechnica.com/arstechnica/index", "country": "US", "language": "en" }
+]

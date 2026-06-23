@@ -1,0 +1,37 @@
+name: Ingestion planifiée des actualités
+
+# Tourne toutes les 20 minutes, indépendamment des limites de cron de Vercel Hobby (1x/jour).
+# Voir docs/architecture.md et docs/strategie/stack-technique.md pour le contexte.
+on:
+  schedule:
+    - cron: "*/20 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Générer le client Prisma
+        run: npx prisma generate
+
+      - name: Appliquer les migrations en attente
+        run: npx prisma migrate deploy
+
+      - name: Lancer l'ingestion
+        run: npm run ingest
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
+          GNEWS_KEY: ${{ secrets.GNEWS_KEY }}
+          SUMMARIZER_PROVIDER: ${{ vars.SUMMARIZER_PROVIDER || 'extractive' }}
+          INTERPRETER_PROVIDER: ${{ vars.INTERPRETER_PROVIDER || 'heuristic' }}

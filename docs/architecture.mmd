@@ -1,0 +1,34 @@
+flowchart LR
+    subgraph Sources["Sources externes"]
+        RSS["Flux RSS\n(Le Monde, BBC, Guardian, ...)"]
+        API["API gratuite\n(GNews / NewsAPI, optionnel)"]
+    end
+
+    subgraph Ingestion["Ingestion planifiée (GitHub Actions, toutes les 20 min)"]
+        Fetch["fetchRss / fetchNewsApi"]
+        Normalize["normalize + dedupe"]
+        Geo["geolocate (gazetteer pays/villes)"]
+        Cat["categorize (règles mots-clés)"]
+        Cluster["cluster (Jaccard, fenêtre 48h)"]
+        Sum["SummarizerProvider\n(extractive par défaut)"]
+        Interp["InterpreterProvider\n(heuristic par défaut)"]
+        Pop["computePopularity"]
+    end
+
+    DB[("Base de données\nSQLite (dev) / Postgres (prod)\nvia Prisma")]
+
+    subgraph App["Application Next.js (déployée sur Vercel)"]
+        ApiPublic["/api/v1/*\n(CORS + clé API optionnelle + rate limit)"]
+        Pages["Pages: Accueil (globe+liste), Article, Tendances"]
+    end
+
+    ThirdParty["Application tierce\n(consomme /api/v1/*)"]
+    User["Utilisateur (navigateur)"]
+
+    RSS --> Fetch
+    API --> Fetch
+    Fetch --> Normalize --> Geo --> Cat --> Cluster --> Sum --> Interp --> Pop --> DB
+    DB --> ApiPublic
+    ApiPublic --> Pages
+    Pages --> User
+    ApiPublic --> ThirdParty

@@ -1,0 +1,62 @@
+// Schéma de données de Globe Actu.
+// Voir docs/fonctions.md pour le détail des champs calculés (popularité, catégorie, etc.)
+// et docs/strategie/ pour la justification de chaque heuristique.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // SQLite en dev ("file:./dev.db"), Postgres en prod (voir .env.example).
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// Un média/flux RSS source d'articles.
+model Source {
+  id        String    @id @default(cuid())
+  name      String
+  homepage  String
+  rssUrl    String    @unique
+  country   String // code pays ISO 3166-1 alpha-2 d'origine de la rédaction, ex: "FR", "US"
+  language  String // code langue ISO 639-1, ex: "fr", "en"
+  createdAt DateTime  @default(now())
+  articles  Article[]
+}
+
+/// Un article normalisé, géolocalisé et catégorisé par le pipeline d'ingestion.
+model Article {
+  id              String        @id @default(cuid())
+  sourceId        String
+  source          Source        @relation(fields: [sourceId], references: [id])
+  title           String
+  url             String        @unique
+  rawContent      String // texte brut récupéré du flux (titre + description), utilisé par le pipeline NLP
+  summary         String // résumé produit par le SummarizerProvider actif
+  category        String // "environnement" | "technologie" | "politique" | "economique" | "autre"
+  countryCode     String? // pays détecté par la géolocalisation heuristique
+  locationLabel   String? // libellé humain du lieu détecté, ex: "Paris, France"
+  lat             Float?
+  lng             Float?
+  popularityScore Float         @default(0) // voir docs/strategie/popularite.md
+  publishedAt     DateTime
+  createdAt       DateTime      @default(now())
+  eventClusterId  String?
+  eventCluster    EventCluster? @relation(fields: [eventClusterId], references: [id])
+
+  @@index([category])
+  @@index([publishedAt])
+  @@index([eventClusterId])
+}
+
+/// Un regroupement d'articles (sources différentes) parlant du même évènement.
+/// Porte l'interprétation neutre générée par l'InterpreterProvider actif.
+model EventCluster {
+  id                String    @id @default(cuid())
+  label             String // titre représentatif du cluster (titre de l'article le plus ancien du groupe)
+  category          String
+  interpretationRaw String // JSON sérialisé : { commonPoints, divergences, dominantKeywordsBySource, impactNote, generatedBy }
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  articles          Article[]
+}
