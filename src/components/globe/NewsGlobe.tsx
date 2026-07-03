@@ -13,6 +13,8 @@ export interface GlobePoint {
   title: string;
   category: string;
   popularityScore: number;
+  /** Vrai si l'évènement est en cours d'emballement médiatique (anneau rouge pulsant). */
+  breaking?: boolean;
 }
 
 interface NewsGlobeProps {
@@ -21,10 +23,22 @@ interface NewsGlobeProps {
   onSelectPoint: (id: string) => void;
 }
 
+/** Couleurs du thème "néon" du globe (sphère sombre, continents et halo cyan). */
+const NEON = {
+  sphere: "#0b1026",
+  land: "rgba(34, 211, 238, 0.55)",
+  atmosphere: "#22d3ee",
+};
+
 /**
  * Globe 3D animé : un point par article géolocalisé, coloré par catégorie et dimensionné selon
  * la popularité. La caméra vole automatiquement vers le point sélectionné (`selectedId`), pour
  * rester synchronisée avec la liste d'actualités affichée à côté.
+ *
+ * Rendu "néon" : sphère sombre + continents en hexagones cyan (GeoJSON servi depuis
+ * public/geo/, aucune dépendance réseau externe) + halo atmosphérique. Si le GeoJSON ne charge
+ * pas, on retombe sur la texture satellite nocturne d'origine, qui reste lisible.
+ * Quand aucune localisation n'est sélectionnée, le globe tourne lentement sur lui-même.
  *
  * Deux subtilités d'intégration avec Next.js / une mise en page non plein-écran :
  * - `react-globe.gl` utilise `window`/WebGL et doit donc être chargé uniquement côté client.
@@ -42,9 +56,22 @@ export default function NewsGlobe({ points, selectedId, onSelectPoint }: NewsGlo
   const globeRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
+  // null = chargement en cours, [] = échec (bascule sur la texture), sinon features GeoJSON.
+  const [landPolygons, setLandPolygons] = useState<object[] | null>(null);
+  const [globeReady, setGlobeReady] = useState(false);
 
   useEffect(() => {
     import("react-globe.gl").then((mod) => setGlobeComponent(mod.default));
+  }, []);
+
+  useEffect(() => {
+    fetch("/geo/countries-110m.geojson")
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+      .then((geojson) => setLandPolygons(geojson.features ?? []))
+      .catch((error) => {
+        console.error("[NewsGlobe] GeoJSON des pays indisponible, repli sur la texture:", error);
+        setLandPolygons([]);
+      });
   }, []);
 
   useEffect(() => {
@@ -67,17 +94,41 @@ export default function NewsGlobe({ points, selectedId, onSelectPoint }: NewsGlo
     }
   }, [selectedId, points]);
 
+  // Rotation passive : active tant qu'aucune localisation n'est affichée, coupée dès qu'un
+  // point est sélectionné pour ne pas dériver hors de la zone visée par la caméra.
+  useEffect(() => {
+    if (!globeReady || !globeRef.current) return;
+    const controls = globeRef.current.controls();
+    controls.autoRotate = !selectedId;
+    controls.autoRotateSpeed = 0.6;
+  }, [globeReady, selectedId]);
+
   const Globe = GlobeComponent;
+  const useNeonTheme = landPolygons !== null && landPolygons.length > 0;
+  // Anneaux pulsants : rouge sur les évènements "breaking", couleur de catégorie sur la sélection.
+  const ringPoints = points.filter((p) => p.breaking || p.id === selectedId);
 
   return (
     <div ref={containerRef} className="h-full w-full">
-      {Globe && size.width > 0 && size.height > 0 && (
+      {Globe && size.width > 0 && size.height > 0 && landPolygons !== null && (
         <Globe
           ref={globeRef}
           width={size.width}
           height={size.height}
-          globeImageUrl="//unpkg.com/three-globe/example/img/earth-night.jpg"
+          globeImageUrl={useNeonTheme ? null : "//unpkg.com/three-globe/example/img/earth-night.jpg"}
           backgroundColor="rgba(0,0,0,0)"
+          atmosphereColor={NEON.atmosphere}
+          atmosphereAltitude={0.2}
+          hexPolygonsData={useNeonTheme ? landPolygons : []}
+          hexPolygonResolution={3}
+          hexPolygonMargin={0.65}
+          hexPolygonColor={() => NEON.land}
+          onGlobeReady={() => {
+            if (useNeonTheme && globeRef.current) {
+              globeRef.current.globeMaterial().color.set(NEON.sphere);
+            }
+            setGlobeReady(true);
+          }}
           pointsData={points}
           pointLat="lat"
           pointLng="lng"
@@ -87,6 +138,17 @@ export default function NewsGlobe({ points, selectedId, onSelectPoint }: NewsGlo
           pointLabel={(p: object) => (p as GlobePoint).title}
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           onPointClick={(p: any) => onSelectPoint(p.id)}
+          ringsData={ringPoints}
+          ringLat="lat"
+          ringLng="lng"
+          ringColor={(p: object) => {
+            const point = p as GlobePoint;
+            if (point.breaking && point.id !== selectedId) return "#ff4d4d";
+            return CATEGORY_COLORS[point.category] ?? NEON.atmosphere;
+          }}
+          ringMaxRadius={4}
+          ringPropagationSpeed={2}
+          ringRepeatPeriod={900}
         />
       )}
     </div>

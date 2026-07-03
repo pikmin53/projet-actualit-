@@ -2,9 +2,11 @@
 
 ## Décision
 
-Flux RSS d'une vingtaine de médias internationaux reconnus (`data/sources/rss-feeds.json`)
-comme source principale, complétés optionnellement par une API d'actualité gratuite (GNews
-ou NewsAPI) si une clé est fournie.
+Flux RSS d'une cinquantaine de médias internationaux reconnus (`data/sources/rss-feeds.json`,
+dont des sources spécialisées cybersécurité), complétés par Google News RSS
+(`data/sources/google-news-feeds.json`) et GDELT (`data/sources/gdelt-queries.json`) — tous
+gratuits et sans clé — et optionnellement par une API d'actualité gratuite (GNews ou NewsAPI)
+si une clé est fournie.
 
 ## Pourquoi
 
@@ -31,3 +33,9 @@ ou NewsAPI) si une clé est fournie.
   avale silencieusement les échecs par source pour ne pas bloquer l'ingestion globale, mais
   cela peut masquer une source cassée pendant un moment (à surveiller dans les logs
   `[fetchRssArticles] échec...`).
+
+## Évolution prévue
+
+La stratégie d'extension (plus de flux, Google News RSS, GDELT, alertes structurées, réseaux
+sociaux, publications scientifiques) et la détection des évènements marquants sont décrites
+dans [extension-sources.md](./extension-sources.md).

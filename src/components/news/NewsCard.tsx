@@ -29,6 +29,11 @@ export default function NewsCard({ article, selected, onSelect }: NewsCardProps)
       }`}
     >
       <div className="mb-1 flex items-center gap-2 text-xs">
+        {article.breaking && (
+          <span className="animate-pulse rounded bg-red-500/20 px-2 py-0.5 font-semibold text-red-400">
+            ⚡ BREAKING
+          </span>
+        )}
         <span className="rounded px-2 py-0.5 font-medium" style={{ backgroundColor: `${color}33`, color }}>
           {article.category}
         </span>

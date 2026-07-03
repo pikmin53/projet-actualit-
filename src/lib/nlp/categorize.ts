@@ -12,8 +12,15 @@ const CATEGORY_KEYWORDS: Record<Exclude<Category, "autre">, string[]> = {
   ],
   technologie: [
     "intelligence artificielle", "artificial intelligence", " ia ", " ai ", "robot", "robotique", "robotics",
-    "logiciel", "software", "application", "smartphone", "informatique", "cybersécurité", "cybersecurity",
+    "logiciel", "software", "application", "smartphone", "informatique",
     "startup", "puce", "chip", "semi-conducteur", "semiconductor", "satellite", "spatial", "space launch",
+  ],
+  cybersecurite: [
+    "cyberattaque", "cyberattack", "cyber attack", "cybersécurité", "cybersecurity", "ransomware", "rançongiciel",
+    "data breach", "fuite de données", "vol de données", "données volées", "stolen data", "données personnelles compromises",
+    "ddos", "phishing", "hameçonnage", "zero-day", "zero day", "malware", "spyware", "botnet",
+    "piratage", "piraté", "hacked", "hacker", "hackers", "exfiltration", "cve-", "vulnérabilité critique",
+    "critical vulnerability", "threat actor", "cybercriminel", "cybercrime",
   ],
   politique: [
     "élection", "election", "président", "president", "gouvernement", "government", "parlement", "parliament",

@@ -13,7 +13,12 @@ montre l'évolution hebdomadaire de l'activité par catégorie.
 - 🌐 **Globe animé** (`react-globe.gl`) — la caméra vole vers le lieu de l'actualité
   sélectionnée, dans la liste comme sur le globe.
 - 📰 **Liste d'actualités** filtrable par catégorie (environnement, technologie, politique,
-  économique) et triable par popularité ou date, avec recherche texte.
+  économique, cyberattaques) et triable par popularité ou date, avec recherche texte.
+- 🛡️ **Veille cyberattaques** : catégorie dédiée alimentée par des sources spécialisées
+  (BleepingComputer, The Hacker News, CERT-FR...) ; les attaques à fort impact (services que
+  vous utilisez, conséquences nationales, grands pays) sont boostées dans le classement —
+  liste de veille personnalisable dans
+  [data/sources/cyber-watchlist.json](data/sources/cyber-watchlist.json).
 - 📄 **Page article** : résumé automatique, bloc "Interprétation IA" (comparaison neutre des
   sources couvrant le même évènement, avec disclaimer explicite), liste des sources.
 - 📈 **Page Tendances** : courbes hebdomadaires du nombre d'articles par catégorie, pour
@@ -27,25 +32,40 @@ montre l'évolution hebdomadaire de l'activité par catégorie.
 
 ## Stack technique
 
-Next.js 14 (App Router) + TypeScript + Tailwind CSS + Prisma (SQLite en dev, Postgres en
-prod) + `react-globe.gl` + `recharts`. Détail et justification des choix dans
+Next.js 14 (App Router) + TypeScript + Tailwind CSS + Prisma + PostgreSQL +
+`react-globe.gl` + `recharts`. Détail et justification des choix dans
 [docs/strategie/](docs/strategie/).
 
-## Démarrage rapide
+## Démarrage rapide (Docker — recommandé)
 
-Prérequis : Node.js 20+.
+Prérequis : Docker avec le plugin compose. Sous NixOS : `virtualisation.docker.enable = true;`
+dans la configuration système, puis ajouter l'utilisateur au groupe `docker`.
+
+```bash
+docker compose up -d --build
+```
+
+C'est tout : la base PostgreSQL est créée, les migrations appliquées, l'app servie sur
+http://localhost:3000 et l'ingestion relancée toutes les 20 minutes (`INGEST_INTERVAL_SECONDS`
+pour changer le rythme). Depuis un smartphone sur le même réseau : `http://<ip-machine>:3000`.
+Les clés optionnelles se mettent dans un fichier `.env` (voir [.env.example](.env.example)).
+
+## Démarrage manuel (sans Docker)
+
+Prérequis : Node.js 20+ et un PostgreSQL accessible (ex. le service `db` de docker compose,
+ou une base managée gratuite type Neon/Supabase).
 
 ```bash
 npm install
-cp .env.example .env          # valeurs par défaut déjà fonctionnelles (SQLite, providers locaux)
-npx prisma migrate dev --name init   # crée prisma/dev.db
-npm run ingest                # récupère de vraies actus depuis les flux RSS
+cp .env.example .env          # renseigner DATABASE_URL (PostgreSQL)
+npx prisma migrate deploy     # applique les migrations
+npm run ingest                # récupère de vraies actus (RSS + Google News + GDELT)
 npm run dev                   # http://localhost:3000
 ```
 
-Sans aucune clé API configurée, l'app fonctionne déjà pleinement (flux RSS + résumé/
-interprétation locaux). Les clés `NEWSAPI_KEY`/`GNEWS_KEY` sont optionnelles, pour enrichir
-la couverture.
+Sans aucune clé API configurée, l'app fonctionne déjà pleinement (flux RSS + Google News RSS
++ GDELT + résumé/interprétation locaux). Les clés `NEWSAPI_KEY`/`GNEWS_KEY` sont
+optionnelles, pour enrichir la couverture.
 
 ## Variables d'environnement
 
@@ -59,28 +79,29 @@ interprétation, clé API publique optionnelle, origines CORS autorisées.
 | --- | --- |
 | `npm run dev` | Lance l'app en développement (http://localhost:3000) |
 | `npm run build` / `npm run start` | Build puis lance l'app en production |
-| `npm run ingest` | Lance une exécution d'ingestion (RSS + API → base) |
+| `npm run ingest` | Lance une exécution d'ingestion (RSS + Google News + GDELT + API → base) |
 | `npm run prisma:migrate` | Crée/applique une migration Prisma (dev) |
 | `npm run typecheck` | Vérifie les types TypeScript sans compiler |
 | `npm run lint` | Lint ESLint |
 
 ## Ingestion planifiée
 
-En local, relancer `npm run ingest` régulièrement met à jour la base. En production, un
-workflow GitHub Actions (`.github/workflows/ingest.yml`) tourne toutes les 20 minutes — voir
-ce fichier pour les secrets/variables à configurer dans les paramètres du dépôt GitHub
-(`DATABASE_URL`, `NEWSAPI_KEY`, `GNEWS_KEY`, et en variables de repo
-`SUMMARIZER_PROVIDER`/`INTERPRETER_PROVIDER` si différents des défauts).
+- **Avec docker compose** : le service `ingest` relance l'ingestion toutes les 20 minutes,
+  rien d'autre à configurer.
+- **En cloud** : le workflow GitHub Actions (`.github/workflows/ingest.yml`) tourne toutes
+  les 20 minutes — configurer dans les paramètres du dépôt GitHub le secret `DATABASE_URL`
+  (une base Postgres managée), optionnellement `NEWSAPI_KEY`/`GNEWS_KEY`, et en variables de
+  repo `SUMMARIZER_PROVIDER`/`INTERPRETER_PROVIDER` si différents des défauts. Si vous
+  utilisez uniquement docker compose, ce workflow peut être désactivé dans l'onglet Actions.
 
-## Déploiement en production
+## Déploiement en production (cloud)
 
 1. Créer une base Postgres gratuite (ex. [Supabase](https://supabase.com) ou
    [Neon](https://neon.tech)) et récupérer son `DATABASE_URL`.
-2. Dans `prisma/schema.prisma`, changer `provider = "sqlite"` en `provider = "postgresql"`.
-3. `npx prisma migrate deploy` avec ce `DATABASE_URL`.
-4. Déployer sur [Vercel](https://vercel.com) (import du repo GitHub), en configurant les
+2. `npx prisma migrate deploy` avec ce `DATABASE_URL`.
+3. Déployer sur [Vercel](https://vercel.com) (import du repo GitHub), en configurant les
    mêmes variables d'environnement que `.env.example` dans les paramètres du projet Vercel.
-5. Configurer les secrets du repo GitHub pour que `.github/workflows/ingest.yml` alimente
+4. Configurer les secrets du repo GitHub pour que `.github/workflows/ingest.yml` alimente
    cette même base en continu.
 
 ## Architecture et documentation

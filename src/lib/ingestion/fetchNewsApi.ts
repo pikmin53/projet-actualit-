@@ -1,6 +1,8 @@
+import type { Category } from "@/lib/types";
+
 /**
- * Article récupéré depuis une API d'actualité gratuite (GNews ou NewsAPI), avant qu'une `Source`
- * ne soit créée/retrouvée en base pour son média d'origine.
+ * Article récupéré depuis une source externe (API d'actualité, Google News, GDELT, alertes
+ * structurées), avant qu'une `Source` ne soit créée/retrouvée en base pour son média d'origine.
  */
 export interface ExternalArticle {
   sourceName: string;
@@ -9,6 +11,13 @@ export interface ExternalArticle {
   url: string;
   rawContent: string;
   publishedAt: Date;
+  /** Position native (alertes structurées) : court-circuite la géolocalisation par texte. */
+  lat?: number;
+  lng?: number;
+  locationLabel?: string;
+  countryCode?: string;
+  /** Catégorie imposée par la source : court-circuite la catégorisation par mots-clés. */
+  categoryHint?: Category;
 }
 
 interface GNewsResponse {

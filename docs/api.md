@@ -64,6 +64,7 @@ Réponse :
       "lat": 48.8566,
       "lng": 2.3522,
       "popularityScore": 3.5,
+      "breaking": false,
       "publishedAt": "2026-06-20T10:00:00.000Z",
       "source": { "id": "...", "name": "Le Monde", "homepage": "...", "country": "FR", "language": "fr" }
     }

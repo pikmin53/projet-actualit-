@@ -1,0 +1,28 @@
+{
+  "_commentaire": "Liste de veille pour évaluer l'impact d'une cyberattaque (voir src/lib/nlp/cyberImpact.ts). 'personalServices' : services dont une compromission te touche directement (comptes personnels) — à personnaliser librement. 'majorCountries' : pays dont une atteinte nationale rend l'attaque marquante. 'criticalTerms' : marqueurs d'une attaque à conséquences nationales.",
+  "personalServices": [
+    "gmail", "google", "youtube", "android",
+    "microsoft", "outlook", "windows", "office 365",
+    "apple", "icloud", "iphone",
+    "facebook", "instagram", "whatsapp", "meta",
+    "discord", "steam", "paypal", "amazon", "netflix", "spotify",
+    "orange", "free mobile", "sfr", "bouygues telecom",
+    "crédit agricole", "bnp paribas", "société générale", "caisse d'épargne", "banque postale", "boursorama",
+    "ameli", "impots.gouv", "france travail", "franceconnect", "doctolib"
+  ],
+  "majorCountries": [
+    "france", "united states", "états-unis", "etats-unis", "royaume-uni", "united kingdom",
+    "allemagne", "germany", "chine", "china", "japon", "japan", "inde", "india",
+    "russie", "russia", "union européenne", "european union", "canada", "australie", "australia",
+    "corée du sud", "south korea", "brésil", "brazil", "italie", "italy", "espagne", "spain"
+  ],
+  "criticalTerms": [
+    "millions de comptes", "millions of accounts", "millions d'utilisateurs", "millions of users",
+    "millions de clients", "millions of customers", "infrastructure critique", "critical infrastructure",
+    "hôpital", "hôpitaux", "hospital", "réseau électrique", "power grid", "aéroport", "airport",
+    "gouvernement", "government agency", "ministère", "ministry", "banque centrale", "central bank",
+    "paralysé", "paralysée", "shut down", "services interrompus", "opérateur d'importance vitale",
+    "état-nation", "nation-state", "à l'échelle nationale", "nationwide",
+    "comptes exposés", "comptes compromis", "comptes piratés", "accounts exposed", "accounts compromised", "accounts leaked"
+  ]
+}

@@ -1,0 +1,73 @@
+# Stack complète et reproductible de Globe Actu : `docker compose up -d --build`.
+# - db      : PostgreSQL 16 (données persistées dans le volume db-data).
+# - migrate : applique les migrations Prisma puis s'arrête (les autres services l'attendent).
+# - web     : l'application Next.js sur http://localhost:3000 (accessible depuis un smartphone
+#             sur le même réseau via http://<ip-de-la-machine>:3000).
+# - ingest  : relance l'ingestion toutes les INGEST_INTERVAL_SECONDS (défaut : 20 min).
+# Les clés optionnelles (GNEWS_KEY...) sont lues depuis un fichier .env à côté de ce fichier.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: globeactu
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-globeactu}
+      POSTGRES_DB: globeactu
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      # Exposé en local uniquement, pour brancher un client SQL ou `npm run ingest` hors Docker.
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U globeactu -d globeactu"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: .
+      target: worker
+    command: npx prisma migrate deploy
+    environment:
+      DATABASE_URL: postgresql://globeactu:${POSTGRES_PASSWORD:-globeactu}@db:5432/globeactu
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  web:
+    build:
+      context: .
+      target: runner
+    environment:
+      DATABASE_URL: postgresql://globeactu:${POSTGRES_PASSWORD:-globeactu}@db:5432/globeactu
+      PUBLIC_API_KEY: ${PUBLIC_API_KEY:-}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-*}
+    ports:
+      - "3000:3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  ingest:
+    build:
+      context: .
+      target: worker
+    command: sh -c 'while true; do npm run ingest; echo "[ingest] prochaine passe dans $${INGEST_INTERVAL_SECONDS:-1200}s"; sleep "$${INGEST_INTERVAL_SECONDS:-1200}"; done'
+    environment:
+      DATABASE_URL: postgresql://globeactu:${POSTGRES_PASSWORD:-globeactu}@db:5432/globeactu
+      NEWSAPI_KEY: ${NEWSAPI_KEY:-}
+      GNEWS_KEY: ${GNEWS_KEY:-}
+      SUMMARIZER_PROVIDER: ${SUMMARIZER_PROVIDER:-extractive}
+      INTERPRETER_PROVIDER: ${INTERPRETER_PROVIDER:-heuristic}
+      INGEST_INTERVAL_SECONDS: ${INGEST_INTERVAL_SECONDS:-1200}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  db-data:

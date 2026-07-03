@@ -27,3 +27,14 @@ articles d'un même cluster, recalculé à chaque nouvel article qui y est ratta
 - Le clustering imparfait (voir [clustering-evenements.md](./clustering-evenements.md)) peut
   sous-compter les sources d'un évènement si des articles qui en parlent ne sont pas
   rattachés au même cluster.
+
+## Extension : vélocité et flag "breaking" (phase 2)
+
+En plus du score cumulé ci-dessus, chaque cluster porte une **vélocité** (`sourceVelocity`) :
+le nombre de sources distinctes ayant publié dans les 3 dernières heures (voir
+`src/lib/nlp/breaking.ts`). Au-delà de 3 sources dans la fenêtre, le cluster est marqué
+`breaking: true` — exposé dans l'API (`ArticleDTO.breaking`), affiché en badge dans la liste
+et en anneau rouge pulsant sur le globe. Le flag retombe automatiquement : recalculé à chaque
+article ajouté, et éteint en fin de passe d'ingestion pour les clusters sans activité depuis
+la fenêtre. Les clusters "cybersecurite" reçoivent par ailleurs un multiplicateur d'impact
+(voir `src/lib/nlp/cyberImpact.ts`).

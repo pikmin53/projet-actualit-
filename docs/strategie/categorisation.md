@@ -30,3 +30,14 @@ résumé/l'interprétation (voir [resume-et-interpretation.md](./resume-et-inter
 car l'approche par mots-clés suffit pour la V1. Si besoin d'un classifieur plus fin (ex.
 zero-shot via un modèle local), le même principe de registre interchangeable pourrait être
 appliqué ici sans changer la signature de `categorize()`.
+
+## Catégorie "cybersecurite" (ajoutée en phase 1)
+
+Catégorie dédiée aux cyberattaques, alimentée à la fois par les mots-clés de
+`CATEGORY_KEYWORDS` et par des sources spécialisées (BleepingComputer, The Hacker News,
+CERT-FR, The Record, Numerama Cyberguerre... voir `data/sources/rss-feeds.json`) et des
+requêtes Google News/GDELT ciblées. Les clusters de cette catégorie reçoivent un
+multiplicateur de popularité selon leur impact estimé (services personnels de la liste de
+veille, conséquences nationales, grands pays touchés) — voir `src/lib/nlp/cyberImpact.ts`
+et `data/sources/cyber-watchlist.json` (personnalisable, notamment la liste des services
+dont vous avez un compte).

@@ -39,6 +39,7 @@ export default function HomePage() {
           title: a.title,
           category: a.category,
           popularityScore: a.popularityScore,
+          breaking: a.breaking,
         })),
     [articles]
   );

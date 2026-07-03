@@ -10,13 +10,18 @@
 import "dotenv/config";
 import rssFeeds from "../data/sources/rss-feeds.json";
 import { fetchRssArticles, type FeedSource } from "@/lib/ingestion/fetchRss";
-import { fetchApiArticles } from "@/lib/ingestion/fetchNewsApi";
+import { fetchApiArticles, type ExternalArticle } from "@/lib/ingestion/fetchNewsApi";
+import { fetchGoogleNewsArticles } from "@/lib/ingestion/fetchGoogleNews";
+import { fetchGdeltArticles } from "@/lib/ingestion/fetchGdelt";
+import { fetchAlertArticles } from "@/lib/ingestion/fetchAlerts";
 import { normalizeArticle } from "@/lib/ingestion/normalize";
 import { dedupeArticles } from "@/lib/ingestion/dedupe";
 import { categorize } from "@/lib/nlp/categorize";
 import { geolocate, countryCentroid } from "@/lib/nlp/geolocate";
 import { findBestCluster, CLUSTER_TIME_WINDOW_HOURS } from "@/lib/nlp/cluster";
 import { computePopularity } from "@/lib/nlp/popularity";
+import { computeCyberImpactBoost } from "@/lib/nlp/cyberImpact";
+import { computeSourceVelocity, isBreaking, VELOCITY_WINDOW_HOURS } from "@/lib/nlp/breaking";
 import { getSummarizer, getInterpreter } from "@/lib/nlp/providers/registry";
 import type { Category, RawArticle } from "@/lib/types";
 import {
@@ -27,7 +32,8 @@ import {
   articleExists,
   createArticle,
   countDistinctSourcesInCluster,
-  updateClusterPopularity,
+  updateClusterSignals,
+  clearStaleBreakingClusters,
   getClusterArticles,
 } from "@/lib/db/queries";
 
@@ -56,23 +62,12 @@ function syntheticFeedFor(sourceName: string, homepage: string): RssFeedDefiniti
   };
 }
 
-/** Récupère tous les articles bruts : flux RSS connus + complément API optionnel. */
-async function collectRawArticles(): Promise<RawArticle[]> {
-  const feeds = rssFeeds as RssFeedDefinition[];
-
-  const rssResults = await Promise.all(
-    feeds.map(async (feed) => {
-      const source = await upsertSource(feed);
-      const feedSource: FeedSource = { id: source.id, name: source.name, rssUrl: source.rssUrl, country: source.country };
-      return fetchRssArticles(feedSource);
-    })
-  );
-
-  const externalArticles = await fetchApiArticles();
-  const externalAsRaw: RawArticle[] = [];
+/** Convertit des articles externes (API, Google News, GDELT) en RawArticle avec Source en base. */
+async function externalToRaw(externalArticles: ExternalArticle[]): Promise<RawArticle[]> {
+  const raw: RawArticle[] = [];
   for (const ext of externalArticles) {
     const source = await upsertSource(syntheticFeedFor(ext.sourceName, ext.sourceHomepage));
-    externalAsRaw.push({
+    raw.push({
       sourceId: source.id,
       sourceName: source.name,
       sourceCountry: source.country,
@@ -80,9 +75,43 @@ async function collectRawArticles(): Promise<RawArticle[]> {
       url: ext.url,
       rawContent: ext.rawContent,
       publishedAt: ext.publishedAt,
+      lat: ext.lat,
+      lng: ext.lng,
+      locationLabel: ext.locationLabel,
+      countryCode: ext.countryCode,
+      categoryHint: ext.categoryHint,
     });
   }
+  return raw;
+}
 
+/**
+ * Récupère tous les articles bruts : flux RSS connus, Google News RSS, GDELT, et complément
+ * API optionnel (NewsAPI/GNews). Voir docs/strategie/extension-sources.md pour les couches.
+ */
+async function collectRawArticles(): Promise<RawArticle[]> {
+  const feeds = rssFeeds as RssFeedDefinition[];
+
+  const [rssResults, googleNewsArticles, gdeltArticles, alertArticles, apiArticles] = await Promise.all([
+    Promise.all(
+      feeds.map(async (feed) => {
+        const source = await upsertSource(feed);
+        const feedSource: FeedSource = { id: source.id, name: source.name, rssUrl: source.rssUrl, country: source.country };
+        return fetchRssArticles(feedSource);
+      })
+    ),
+    fetchGoogleNewsArticles(),
+    fetchGdeltArticles(),
+    fetchAlertArticles(),
+    fetchApiArticles(),
+  ]);
+
+  console.log(
+    `[ingest] Répartition brute : ${rssResults.flat().length} RSS, ${googleNewsArticles.length} Google News, ` +
+      `${gdeltArticles.length} GDELT, ${alertArticles.length} alertes, ${apiArticles.length} API.`
+  );
+
+  const externalAsRaw = await externalToRaw([...googleNewsArticles, ...gdeltArticles, ...alertArticles, ...apiArticles]);
   return [...rssResults.flat(), ...externalAsRaw];
 }
 
@@ -121,8 +150,20 @@ async function refreshCluster(clusterId: string, category: Category) {
 
   const distinctSourceCount = await countDistinctSourcesInCluster(clusterId);
   const mostRecent = articles.reduce((latest, a) => (a.publishedAt > latest ? a.publishedAt : latest), articles[0].publishedAt);
-  const popularityScore = computePopularity(distinctSourceCount, mostRecent);
-  await updateClusterPopularity(clusterId, popularityScore);
+  // Les cyberattaques à fort impact (services personnels, conséquences nationales, grands pays)
+  // sont boostées pour remonter en tête — voir cyberImpact.ts et data/sources/cyber-watchlist.json.
+  const impactBoost =
+    category === "cybersecurite"
+      ? computeCyberImpactBoost(articles.map((a) => `${a.title} ${a.rawContent}`))
+      : 1;
+  const popularityScore = computePopularity(distinctSourceCount, mostRecent, new Date(), impactBoost);
+
+  // Vélocité = sources distinctes sur la fenêtre récente : détecte l'emballement en cours
+  // ("breaking"), indépendamment du total cumulé. Voir src/lib/nlp/breaking.ts.
+  const sourceVelocity = computeSourceVelocity(
+    articles.map((a) => ({ sourceId: a.sourceId, publishedAt: a.publishedAt }))
+  );
+  await updateClusterSignals(clusterId, { popularityScore, breaking: isBreaking(sourceVelocity), sourceVelocity });
 }
 
 async function run() {
@@ -144,8 +185,18 @@ async function run() {
     }
 
     const fullText = `${article.title} ${article.rawContent}`;
-    const category = categorize(fullText);
-    const geo = geolocate(fullText) ?? countryCentroid(article.sourceCountry);
+    // Les alertes structurées imposent leur catégorie et leur position (fiables à la source) ;
+    // pour tout le reste, on garde les heuristiques par texte.
+    const category = article.categoryHint ?? categorize(fullText);
+    const geo =
+      article.lat != null && article.lng != null
+        ? {
+            countryCode: article.countryCode ?? null,
+            locationLabel: article.locationLabel ?? null,
+            lat: article.lat,
+            lng: article.lng,
+          }
+        : geolocate(fullText) ?? countryCentroid(article.sourceCountry);
     const summary = await summarizer.summarize(article.rawContent, { maxSentences: 3 });
     const clusterId = await resolveCluster(article.title, category);
 
@@ -169,7 +220,11 @@ async function run() {
     created += 1;
   }
 
-  console.log(`[ingest] Terminé : ${created} nouveaux articles, ${skipped} doublons ignorés.`);
+  const clearedBreaking = await clearStaleBreakingClusters(VELOCITY_WINDOW_HOURS);
+  console.log(
+    `[ingest] Terminé : ${created} nouveaux articles, ${skipped} doublons ignorés, ` +
+      `${clearedBreaking} clusters "breaking" retombés.`
+  );
 }
 
 run()

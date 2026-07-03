@@ -25,7 +25,7 @@ export interface ListArticlesParams {
 export async function listArticles(params: ListArticlesParams = {}) {
   const { category, sort = "popularity", search, limit = 50, offset = 0 } = params;
 
-  return prisma.article.findMany({
+  const articles = await prisma.article.findMany({
     where: {
       ...(category ? { category } : {}),
       ...(search
@@ -41,8 +41,14 @@ export async function listArticles(params: ListArticlesParams = {}) {
     orderBy: sort === "date" ? { publishedAt: "desc" } : [{ popularityScore: "desc" }, { publishedAt: "desc" }],
     take: limit,
     skip: offset,
-    include: { source: true },
+    include: { source: true, eventCluster: { select: { breaking: true } } },
   });
+
+  // Aplatit le flag breaking du cluster sur chaque article (contrat ArticleDTO, voir docs/api.md).
+  return articles.map(({ eventCluster, ...article }) => ({
+    ...article,
+    breaking: eventCluster?.breaking ?? false,
+  }));
 }
 
 /**
@@ -179,9 +185,39 @@ export async function countDistinctSourcesInCluster(clusterId: string): Promise<
   return new Set(articles.map((a) => a.sourceId)).size;
 }
 
-/** Met à jour le score de popularité de tous les articles d'un cluster (après ajout d'un nouvel article). */
-export async function updateClusterPopularity(clusterId: string, popularityScore: number) {
-  return prisma.article.updateMany({ where: { eventClusterId: clusterId }, data: { popularityScore } });
+/**
+ * Met à jour les signaux calculés d'un cluster après ajout d'un article : score de popularité
+ * (recopié sur tous ses articles) et état "breaking" + vélocité (portés par le cluster).
+ */
+export async function updateClusterSignals(
+  clusterId: string,
+  signals: { popularityScore: number; breaking: boolean; sourceVelocity: number }
+) {
+  return prisma.$transaction([
+    prisma.article.updateMany({
+      where: { eventClusterId: clusterId },
+      data: { popularityScore: signals.popularityScore },
+    }),
+    prisma.eventCluster.update({
+      where: { id: clusterId },
+      data: { breaking: signals.breaking, sourceVelocity: signals.sourceVelocity },
+    }),
+  ]);
+}
+
+/**
+ * Éteint le flag "breaking" des clusters qui n'ont reçu aucune mise à jour depuis la fenêtre de
+ * vélocité : l'emballement est retombé mais aucun nouvel article n'a déclenché de recalcul.
+ * Appelé en fin de chaque passe d'ingestion.
+ * @returns Le nombre de clusters désactivés.
+ */
+export async function clearStaleBreakingClusters(olderThanHours: number): Promise<number> {
+  const cutoff = new Date(Date.now() - olderThanHours * 60 * 60 * 1000);
+  const result = await prisma.eventCluster.updateMany({
+    where: { breaking: true, updatedAt: { lt: cutoff } },
+    data: { breaking: false, sourceVelocity: 0 },
+  });
+  return result.count;
 }
 
 /** Articles d'un cluster, utilisés pour reconstruire l'interprétation à jour. */

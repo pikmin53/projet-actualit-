@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "EventCluster" ADD COLUMN "breaking" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "EventCluster" ADD COLUMN "sourceVelocity" DOUBLE PRECISION NOT NULL DEFAULT 0;

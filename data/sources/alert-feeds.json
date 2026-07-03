@@ -1,0 +1,6 @@
+{
+  "_commentaire": "Alertes structurées quasi temps réel avec position native (voir docs/strategie/extension-sources.md, couche 2). usgs.feed : nom du flux GeoJSON USGS (ex: '2.5_day', '4.5_day', 'significant_day'). gdacs.minAlertLevel : 'Green' | 'Orange' | 'Red' — niveau minimal retenu (Green = très fréquent et peu marquant). eonet.days : fenêtre en jours des évènements naturels NASA.",
+  "usgs": { "enabled": true, "feed": "4.5_day" },
+  "gdacs": { "enabled": true, "minAlertLevel": "Orange" },
+  "eonet": { "enabled": true, "days": 2 }
+}

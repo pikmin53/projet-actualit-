@@ -1,17 +1,19 @@
 -- CreateTable
 CREATE TABLE "Source" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "homepage" TEXT NOT NULL,
     "rssUrl" TEXT NOT NULL,
     "country" TEXT NOT NULL,
     "language" TEXT NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Source_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "Article" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "sourceId" TEXT NOT NULL,
     "title" TEXT NOT NULL,
     "url" TEXT NOT NULL,
@@ -20,24 +22,26 @@ CREATE TABLE "Article" (
     "category" TEXT NOT NULL,
     "countryCode" TEXT,
     "locationLabel" TEXT,
-    "lat" REAL,
-    "lng" REAL,
-    "popularityScore" REAL NOT NULL DEFAULT 0,
-    "publishedAt" DATETIME NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "lat" DOUBLE PRECISION,
+    "lng" DOUBLE PRECISION,
+    "popularityScore" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "publishedAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "eventClusterId" TEXT,
-    CONSTRAINT "Article_sourceId_fkey" FOREIGN KEY ("sourceId") REFERENCES "Source" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
-    CONSTRAINT "Article_eventClusterId_fkey" FOREIGN KEY ("eventClusterId") REFERENCES "EventCluster" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+
+    CONSTRAINT "Article_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "EventCluster" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "label" TEXT NOT NULL,
     "category" TEXT NOT NULL,
     "interpretationRaw" TEXT NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "EventCluster_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -54,3 +58,9 @@ CREATE INDEX "Article_publishedAt_idx" ON "Article"("publishedAt");
 
 -- CreateIndex
 CREATE INDEX "Article_eventClusterId_idx" ON "Article"("eventClusterId");
+
+-- AddForeignKey
+ALTER TABLE "Article" ADD CONSTRAINT "Article_sourceId_fkey" FOREIGN KEY ("sourceId") REFERENCES "Source"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Article" ADD CONSTRAINT "Article_eventClusterId_fkey" FOREIGN KEY ("eventClusterId") REFERENCES "EventCluster"("id") ON DELETE SET NULL ON UPDATE CASCADE;

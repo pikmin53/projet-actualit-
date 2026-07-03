@@ -1,0 +1,7 @@
+[
+  { "id": "gn-fr-une", "label": "Google News FR — À la une", "kind": "edition", "hl": "fr", "gl": "FR", "ceid": "FR:fr" },
+  { "id": "gn-en-world", "label": "Google News EN — World", "kind": "topic", "topic": "WORLD", "hl": "en-US", "gl": "US", "ceid": "US:en" },
+  { "id": "gn-cyber-fr", "label": "Google News — cyberattaques (FR)", "kind": "search", "query": "cyberattaque OR rançongiciel OR \"fuite de données\" when:1d", "hl": "fr", "gl": "FR", "ceid": "FR:fr" },
+  { "id": "gn-cyber-en", "label": "Google News — cyberattaques (EN)", "kind": "search", "query": "cyberattack OR ransomware OR \"data breach\" when:1d", "hl": "en-US", "gl": "US", "ceid": "US:en" },
+  { "id": "gn-breaking-fr", "label": "Google News — catastrophes/accidents (FR)", "kind": "search", "query": "explosion OR séisme OR crash OR incendie majeur when:1d", "hl": "fr", "gl": "FR", "ceid": "FR:fr" }
+]

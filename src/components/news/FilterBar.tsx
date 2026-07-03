@@ -9,6 +9,7 @@ const CATEGORIES: { value: Category | "toutes"; label: string }[] = [
   { value: "technologie", label: "Technologie" },
   { value: "politique", label: "Politique" },
   { value: "economique", label: "Économique" },
+  { value: "cybersecurite", label: "Cyberattaques" },
 ];
 
 interface FilterBarProps {

@@ -7,8 +7,9 @@ generator client {
 }
 
 datasource db {
-  // SQLite en dev ("file:./dev.db"), Postgres en prod (voir .env.example).
-  provider = "sqlite"
+  // PostgreSQL partout : en local via docker compose (service "db"), en prod via une base
+  // managée (Neon/Supabase). Voir .env.example et docker-compose.yml.
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -33,7 +34,7 @@ model Article {
   url             String        @unique
   rawContent      String // texte brut récupéré du flux (titre + description), utilisé par le pipeline NLP
   summary         String // résumé produit par le SummarizerProvider actif
-  category        String // "environnement" | "technologie" | "politique" | "economique" | "autre"
+  category        String // "environnement" | "technologie" | "politique" | "economique" | "cybersecurite" | "autre"
   countryCode     String? // pays détecté par la géolocalisation heuristique
   locationLabel   String? // libellé humain du lieu détecté, ex: "Paris, France"
   lat             Float?
@@ -56,6 +57,8 @@ model EventCluster {
   label             String // titre représentatif du cluster (titre de l'article le plus ancien du groupe)
   category          String
   interpretationRaw String // JSON sérialisé : { commonPoints, divergences, dominantKeywordsBySource, impactNote, generatedBy }
+  breaking          Boolean   @default(false) // vrai si la vélocité dépasse le seuil "breaking", voir src/lib/nlp/breaking.ts
+  sourceVelocity    Float     @default(0) // sources distinctes ayant publié dans la fenêtre de vélocité récente
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   articles          Article[]

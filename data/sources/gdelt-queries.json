@@ -1,0 +1,6 @@
+[
+  { "id": "gdelt-cyber-en", "label": "Cyberattaques (EN)", "query": "(cyberattack OR ransomware OR \"data breach\") sourcelang:eng", "timespan": "2h" },
+  { "id": "gdelt-cyber-fr", "label": "Cyberattaques (FR)", "query": "(cyberattaque OR rançongiciel OR \"fuite de données\") sourcelang:fre", "timespan": "2h" },
+  { "id": "gdelt-catastrophes", "label": "Catastrophes et accidents (EN)", "query": "(earthquake OR tsunami OR \"plane crash\" OR \"major explosion\") sourcelang:eng", "timespan": "2h" },
+  { "id": "gdelt-conflits", "label": "Conflits (EN)", "query": "(airstrike OR offensive OR ceasefire) sourcelang:eng", "timespan": "2h" }
+]

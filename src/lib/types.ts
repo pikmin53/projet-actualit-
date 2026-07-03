@@ -1,5 +1,5 @@
 /** Catégories de classification supportées par le pipeline. Voir docs/strategie/categorisation.md. */
-export type Category = "environnement" | "technologie" | "politique" | "economique" | "autre";
+export type Category = "environnement" | "technologie" | "politique" | "economique" | "cybersecurite" | "autre";
 
 /** Tri disponible pour la liste d'actualités. */
 export type SortKey = "popularity" | "date";
@@ -13,6 +13,15 @@ export interface RawArticle {
   url: string;
   rawContent: string;
   publishedAt: Date;
+  /** Position native fournie par la source (alertes structurées USGS/GDACS/EONET) : si présente,
+   * elle court-circuite la géolocalisation heuristique par texte. */
+  lat?: number;
+  lng?: number;
+  locationLabel?: string;
+  countryCode?: string;
+  /** Catégorie imposée par la source (ex: "environnement" pour un séisme USGS) : si présente,
+   * elle court-circuite la catégorisation par mots-clés. */
+  categoryHint?: Category;
 }
 
 /** Résultat d'une géolocalisation heuristique sur un texte d'article. */
@@ -35,6 +44,9 @@ export interface ArticleDTO {
   lat: number | null;
   lng: number | null;
   popularityScore: number;
+  /** Vrai si le cluster d'évènement de l'article est en cours d'emballement médiatique
+   * (vélocité de sources au-dessus du seuil, voir src/lib/nlp/breaking.ts). */
+  breaking: boolean;
   publishedAt: string;
   source: { id: string; name: string; homepage: string; country: string; language: string };
 }
