@@ -35,7 +35,7 @@
   { "name": "Times of India (Monde)", "homepage": "https://timesofindia.indiatimes.com/world", "rssUrl": "https://timesofindia.indiatimes.com/rssfeeds/296589292.cms", "country": "IN", "language": "en" },
   { "name": "The Hindu International", "homepage": "https://www.thehindu.com/news/international/", "rssUrl": "https://www.thehindu.com/news/international/feeder/default.rss", "country": "IN", "language": "en" },
   { "name": "Times of Israel", "homepage": "https://www.timesofisrael.com", "rssUrl": "https://www.timesofisrael.com/feed/", "country": "IL", "language": "en" },
-  { "name": "Arab News", "homepage": "https://www.arabnews.com", "rssUrl": "https://www.arabnews.com/rss.xml", "country": "SA", "language": "en" },
+  { "name": "Saudi Gazette", "homepage": "https://saudigazette.com.sa", "rssUrl": "https://saudigazette.com.sa/rssFeed/74", "country": "SA", "language": "en" },
   { "name": "AllAfrica", "homepage": "https://allafrica.com", "rssUrl": "https://allafrica.com/tools/headlines/rdf/latest/headlines.rdf", "country": "ZZ", "language": "en" },
   { "name": "The Punch (Nigeria)", "homepage": "https://punchng.com", "rssUrl": "https://punchng.com/feed/", "country": "NG", "language": "en" },
   { "name": "Clarín (Dernière heure)", "homepage": "https://www.clarin.com", "rssUrl": "https://www.clarin.com/rss/lo-ultimo/", "country": "AR", "language": "es" },

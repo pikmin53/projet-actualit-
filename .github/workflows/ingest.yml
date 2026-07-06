@@ -7,9 +7,18 @@ on:
     - cron: "*/20 * * * *"
   workflow_dispatch: {}
 
+# Jamais deux ingestions en parallèle : si un run déborde sur le créneau suivant,
+# le nouveau attend au lieu de s'empiler (et de multiplier les minutes consommées).
+concurrency:
+  group: ingest
+  cancel-in-progress: false
+
 jobs:
   ingest:
     runs-on: ubuntu-latest
+    # Coupe les runs bloqués : sans cette borne, un fetch qui pend peut tourner 6 h
+    # (défaut GitHub) et brûler le quota de minutes du compte (repo privé = 2000 min/mois).
+    timeout-minutes: 15
     # DATABASE_URL au niveau du job : nécessaire à la fois pour `prisma migrate deploy`
     # et pour l'ingestion elle-même.
     env:

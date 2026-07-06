@@ -31,8 +31,17 @@ const GDELT_ENDPOINT = "https://api.gdeltproject.org/api/v2/doc/doc";
  * rapides ou sans User-Agent (vérifié empiriquement) : on espace largement et on s'identifie.
  */
 const REQUEST_SPACING_MS = 10_000;
+/**
+ * Pause avant de retenter une requête rate-limitée. Les IPs des runners GitHub Actions étant
+ * partagées entre de nombreux utilisateurs, un 429 peut survenir même en respectant
+ * REQUEST_SPACING_MS : on laisse la fenêtre de rate-limit se vider avant un unique retry.
+ */
+const RATE_LIMIT_RETRY_DELAY_MS = 45_000;
 // ASCII strict : certains WAF (GDACS, potentiellement GDELT) rejettent les en-têtes accentués.
 const USER_AGENT = "GlobeActu/0.1 (open source news aggregator)";
+
+/** Dépassement du rate-limit GDELT (429 explicite ou message texte avec statut 200). */
+class RateLimitError extends Error {}
 
 /** Convertit un seendate GDELT ("20260703T012000Z") en Date. */
 function parseSeenDate(seendate: string | undefined): Date {
@@ -59,12 +68,13 @@ async function runQuery(definition: GdeltQueryDefinition): Promise<ExternalArtic
     headers: { "User-Agent": USER_AGENT },
     signal: AbortSignal.timeout(20_000),
   });
+  if (response.status === 429) throw new RateLimitError(`GDELT a répondu 429`);
   if (!response.ok) throw new Error(`GDELT a répondu ${response.status}`);
 
   const body = await response.text();
   // En cas de dépassement du rate-limit, GDELT renvoie un message texte avec un statut 200.
   if (!body.trimStart().startsWith("{")) {
-    throw new Error(`réponse non-JSON (rate-limit probable): ${body.slice(0, 120)}...`);
+    throw new RateLimitError(`réponse non-JSON (rate-limit probable): ${body.slice(0, 120)}...`);
   }
 
   const data = JSON.parse(body) as { articles?: GdeltArticle[] };
@@ -95,7 +105,20 @@ export async function fetchGdeltArticles(): Promise<ExternalArticle[]> {
     try {
       articles.push(...(await runQuery(definition)));
     } catch (error) {
-      console.error(`[fetchGdeltArticles] échec pour la requête "${definition.label}":`, error);
+      if (!(error instanceof RateLimitError)) {
+        console.error(`[fetchGdeltArticles] échec pour la requête "${definition.label}":`, error);
+        continue;
+      }
+      // Rate-limité : on laisse la fenêtre se vider puis on retente une seule fois.
+      await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_RETRY_DELAY_MS));
+      try {
+        articles.push(...(await runQuery(definition)));
+      } catch (retryError) {
+        console.error(
+          `[fetchGdeltArticles] échec pour la requête "${definition.label}" (après retry rate-limit):`,
+          retryError,
+        );
+      }
     }
   }
 

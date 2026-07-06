@@ -1,7 +1,11 @@
 import Parser from "rss-parser";
 import type { RawArticle } from "@/lib/types";
 
-const parser = new Parser({ timeout: 15000 });
+// User-Agent identifié : le défaut de rss-parser ("rss-parser") est bloqué par certains WAF.
+const parser = new Parser({
+  timeout: 15000,
+  headers: { "User-Agent": "Mozilla/5.0 (compatible; GlobeActu/0.1; +https://github.com/pikmin53/projet-actualit-)" },
+});
 
 /** Description minimale d'une source nécessaire pour récupérer et rattacher ses articles. */
 export interface FeedSource {
