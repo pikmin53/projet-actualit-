@@ -23,6 +23,16 @@ montre l'évolution hebdomadaire de l'activité par catégorie.
   sources couvrant le même évènement, avec disclaimer explicite), liste des sources.
 - 📈 **Page Tendances** : courbes hebdomadaires du nombre d'articles par catégorie, pour
   repérer les pics d'activité.
+- ⚡ **Détection "breaking"** : vélocité des clusters (sources distinctes sur 3 h) + signaux
+  sociaux Reddit confirmés par la presse — bandeau défilant, badge et anneau rouge sur le globe.
+  Un signal social seul n'est jamais publié (voir
+  [docs/strategie/extension-sources.md](docs/strategie/extension-sources.md)).
+- 🎨 **Thèmes de couleur** dans l'onglet Paramètres : sombre, jour, pride, vert hacker —
+  persistés dans le navigateur.
+- 🔬 **Veille scientifique** : arXiv, medRxiv, Nature/Science, agrégateurs de communiqués et
+  blogs officiels des labos d'IA (OpenAI, DeepMind, Hugging Face, Anthropic), filtrés et
+  priorisés par une liste de veille (IA > quantique/spatial > climat > santé) —
+  personnalisable dans [data/sources/science-watchlist.json](data/sources/science-watchlist.json).
 - 🔌 **API publique** `/api/v1/*` (CORS + clé API optionnelle + rate limiting) — voir
   [docs/api.md](docs/api.md) : une autre application peut consommer les données directement.
 - 🧩 **Modèles de résumé/interprétation interchangeables** sans changer de code (variables

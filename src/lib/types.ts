@@ -1,5 +1,12 @@
 /** Catégories de classification supportées par le pipeline. Voir docs/strategie/categorisation.md. */
-export type Category = "environnement" | "technologie" | "politique" | "economique" | "cybersecurite" | "autre";
+export type Category =
+  | "environnement"
+  | "technologie"
+  | "politique"
+  | "economique"
+  | "cybersecurite"
+  | "science"
+  | "autre";
 
 /** Tri disponible pour la liste d'actualités. */
 export type SortKey = "popularity" | "date";

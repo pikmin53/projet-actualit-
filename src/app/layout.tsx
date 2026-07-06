@@ -7,20 +7,39 @@ export const metadata: Metadata = {
   description: "Visualisation en direct de l'actualité mondiale sur un globe 3D animé.",
 };
 
+/**
+ * Applique le thème persisté avant la première peinture (évite le "flash" du thème par défaut).
+ * Doit rester un script inline synchrone dans <head> — voir /parametres pour le choix du thème.
+ */
+const THEME_INIT_SCRIPT = `
+try {
+  var theme = localStorage.getItem("globe-actu-theme");
+  if (["sombre", "jour", "pride", "hacker"].includes(theme)) {
+    document.documentElement.dataset.theme = theme;
+  }
+} catch (e) {}
+`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="fr">
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body>
-        <header className="flex items-center justify-between border-b border-white/10 px-6 py-4">
-          <Link href="/" className="text-lg font-semibold tracking-tight">
+        <header className="flex items-center justify-between border-b border-fg/10 px-6 py-4">
+          <Link href="/" className="site-title text-lg font-semibold tracking-tight">
             🌍 Globe Actu
           </Link>
-          <nav className="flex gap-6 text-sm text-white/70">
-            <Link href="/" className="hover:text-white">
+          <nav className="flex gap-6 text-sm text-fg/70">
+            <Link href="/" className="hover:text-fg">
               Accueil
             </Link>
-            <Link href="/tendances" className="hover:text-white">
+            <Link href="/tendances" className="hover:text-fg">
               Tendances
+            </Link>
+            <Link href="/parametres" className="hover:text-fg">
+              ⚙ Paramètres
             </Link>
           </nav>
         </header>

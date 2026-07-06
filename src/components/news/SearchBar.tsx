@@ -22,7 +22,7 @@ export default function SearchBar({ onSearch, debounceMs = 300 }: SearchBarProps
       value={value}
       onChange={(e) => setValue(e.target.value)}
       placeholder="Rechercher un lieu, un mot-clé..."
-      className="w-full rounded border border-white/15 bg-white/5 px-3 py-2 text-sm placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/30"
+      className="w-full rounded border border-fg/15 bg-fg/5 px-3 py-2 text-sm placeholder:text-fg/40 focus:outline-none focus:ring-1 focus:ring-fg/30"
     />
   );
 }

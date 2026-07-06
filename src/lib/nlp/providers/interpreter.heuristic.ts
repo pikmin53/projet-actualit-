@@ -9,6 +9,7 @@ const IMPACT_NOTES: Record<Category, string> = {
   politique: "Impact potentiel sur les rapports de force institutionnels, les relations internationales et l'opinion publique.",
   economique: "Impact potentiel sur les marchés, l'emploi et les politiques économiques nationales ou internationales.",
   cybersecurite: "Impact potentiel sur la sécurité des données, la continuité de services (entreprises, administrations, infrastructures) et les utilisateurs des services touchés.",
+  science: "Impact potentiel sur l'état des connaissances, les applications technologiques ou médicales à venir et les politiques de recherche.",
   autre: "Impact difficile à catégoriser automatiquement ; à interpréter au cas par cas.",
 };
 

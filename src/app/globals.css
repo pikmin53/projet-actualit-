@@ -2,8 +2,108 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Thèmes de couleur (choisis dans /parametres, persistés en localStorage, appliqués via
+ * l'attribut data-theme sur <html> avant la première peinture — voir layout.tsx).
+ * Chaque thème définit des triplets RGB consommés par Tailwind (couleurs "fg"/"base"/"accent",
+ * voir tailwind.config.ts), ce qui fait suivre tout le reste de l'UI automatiquement.
+ */
+:root,
+[data-theme="sombre"] {
+  --bg: 5 7 13;
+  --fg: 231 235 243;
+  --accent: 34 211 238;
+}
+
+[data-theme="jour"] {
+  --bg: 243 245 250;
+  --fg: 20 28 46;
+  --accent: 2 132 199;
+}
+
+[data-theme="pride"] {
+  --bg: 18 8 30;
+  --fg: 246 240 255;
+  --accent: 236 72 153;
+}
+
+[data-theme="hacker"] {
+  --bg: 2 8 3;
+  --fg: 134 239 172;
+  --accent: 0 255 136;
+}
+
 html,
 body {
-  background-color: #05070d;
-  color: #e7ebf3;
+  background-color: rgb(var(--bg));
+  color: rgb(var(--fg));
+}
+
+/* --- Signature visuelle du thème pride : l'arc-en-ciel partout, et fièrement. 🏳️‍🌈 --- */
+[data-theme="pride"] header {
+  border-bottom: 4px solid;
+  border-image: linear-gradient(90deg, #e40303, #ff8c00, #ffed00, #008026, #24408e, #732982) 1;
+}
+
+/* Fond légèrement irisé (voile arc-en-ciel diagonal sur le violet profond). */
+[data-theme="pride"] body {
+  background-image: linear-gradient(
+    135deg,
+    rgba(228, 3, 3, 0.09),
+    rgba(255, 140, 0, 0.09) 20%,
+    rgba(255, 237, 0, 0.08) 40%,
+    rgba(0, 128, 38, 0.09) 60%,
+    rgba(36, 64, 142, 0.11) 80%,
+    rgba(115, 41, 130, 0.14)
+  );
+  background-attachment: fixed;
+}
+
+/* Titre du site en dégradé arc-en-ciel, drapeau en prime. */
+[data-theme="pride"] .site-title {
+  background: linear-gradient(90deg, #e40303, #ff8c00, #ffed00, #008026, #24408e, #732982);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 800;
+}
+
+[data-theme="pride"] .site-title::after {
+  content: " 🏳️‍🌈";
+}
+
+/* Liens de navigation soulignés arc-en-ciel au survol. */
+[data-theme="pride"] nav a:hover {
+  background: linear-gradient(90deg, #e40303, #ff8c00, #ffed00, #008026, #24408e, #732982);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Le bandeau breaking lui-même passe au dégradé. */
+[data-theme="pride"] .animate-ticker {
+  font-weight: 500;
+}
+
+/* --- Signature visuelle du thème hacker : terminal vert phosphore. --- */
+[data-theme="hacker"] body {
+  font-family: ui-monospace, "Cascadia Code", "Fira Code", monospace;
+}
+
+/* Défilement du bandeau "breaking" (voir BreakingTicker.tsx). */
+@keyframes ticker-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-ticker {
+  animation: ticker-scroll 40s linear infinite;
+}
+
+.animate-ticker:hover {
+  animation-play-state: paused;
 }

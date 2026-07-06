@@ -13,11 +13,11 @@ interface NewsListProps {
 /** Liste verticale scrollable des actualités, déjà filtrées/triées par le parent. */
 export default function NewsList({ articles, selectedId, onSelect, loading }: NewsListProps) {
   if (loading) {
-    return <p className="p-4 text-sm text-white/50">Chargement des actualités...</p>;
+    return <p className="p-4 text-sm text-fg/50">Chargement des actualités...</p>;
   }
 
   if (articles.length === 0) {
-    return <p className="p-4 text-sm text-white/50">Aucune actualité ne correspond à ces filtres.</p>;
+    return <p className="p-4 text-sm text-fg/50">Aucune actualité ne correspond à ces filtres.</p>;
   }
 
   return (

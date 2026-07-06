@@ -1,0 +1,10 @@
+{
+  "_commentaire": "Couche sociale (voir docs/strategie/extension-sources.md, couche 3). Un post social n'est JAMAIS publié tel quel : il devient un évènement candidat qui doit être confirmé par un cluster de presse dans la fenêtre confirmationWindowHours, sinon il est purgé. 'listing' : new | rising | hot (rising = posts en train de monter, meilleur signal précoce).",
+  "confirmationWindowHours": 6,
+  "reddit": {
+    "enabled": true,
+    "listing": "rising",
+    "limitPerSubreddit": 25,
+    "subreddits": ["worldnews", "news", "europe", "france", "technology", "cybersecurity", "netsec"]
+  }
+}

@@ -45,7 +45,7 @@ export default function TendancesPage() {
         <select
           value={weeks}
           onChange={(e) => setWeeks(Number(e.target.value))}
-          className="rounded border border-white/15 bg-transparent px-2 py-1 text-sm"
+          className="rounded border border-fg/15 bg-transparent px-2 py-1 text-sm"
         >
           {WEEK_OPTIONS.map((w) => (
             <option key={w} value={w}>
@@ -55,9 +55,9 @@ export default function TendancesPage() {
         </select>
       </div>
 
-      {loading && <p className="text-sm text-white/50">Chargement des tendances...</p>}
+      {loading && <p className="text-sm text-fg/50">Chargement des tendances...</p>}
       {!loading && rows.length === 0 && (
-        <p className="text-sm text-white/50">
+        <p className="text-sm text-fg/50">
           Pas encore de données. Lancez une ingestion (`npm run ingest`) pour peupler la base.
         </p>
       )}

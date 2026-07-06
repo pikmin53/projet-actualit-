@@ -95,6 +95,63 @@ Recherche texte (alias pratique de `/articles?search=...`). `q` est obligatoire.
 Renvoie un cluster d'évènement (toutes les sources qui en parlent) avec son `interpretation`
 neutre désérialisée.
 
+## `GET /api/v1/sources`
+
+Liste les **sources personnalisées** (ajoutées via la page Paramètres ou ce même endpoint),
+actives ou non, avec leur nombre d'articles ingérés. Les sources "connues" de
+`data/sources/*.json` n'y figurent pas.
+
+```json
+{
+  "sources": [
+    {
+      "id": "...",
+      "name": "Mediapart",
+      "homepage": "https://www.mediapart.fr",
+      "rssUrl": "https://www.mediapart.fr/articles/feed",
+      "country": "FR",
+      "language": "fr",
+      "enabled": true,
+      "articleCount": 12,
+      "createdAt": "2026-07-03T18:00:00.000Z"
+    }
+  ]
+}
+```
+
+## `POST /api/v1/sources`
+
+Ajoute une source personnalisée à partir d'une URL : soit l'URL directe d'un flux RSS/Atom,
+soit la page d'accueil du média (le flux est alors autodécouvert via
+`<link rel="alternate" type="application/rss+xml">`). Le flux est validé (récupéré et parsé)
+avant enregistrement. La source est interrogée à chaque passe d'ingestion suivante.
+
+Body JSON :
+
+| Champ | Type | Description |
+| --- | --- | --- |
+| `url` | string | **Requis.** URL du flux ou de la page d'accueil (http/https). |
+| `name` | string | Nom affiché. Défaut : titre du flux, sinon le nom d'hôte. |
+| `country` | string | Code pays ISO à 2 lettres (position de repli sur le globe). Défaut `ZZ`. |
+| `language` | string | Code langue ISO à 2 lettres. Défaut : langue déclarée par le flux, sinon `fr`. |
+
+Réponse `201` : `{ "source": { ... } }` (même forme que le GET). Erreurs spécifiques :
+`422` si aucun flux exploitable n'est trouvé à cette adresse, `409` si le flux est déjà suivi.
+Les API propriétaires (JSON maison, NewsAPI-like) ne sont pas prises en charge : elles
+demandent un fetcher dédié (voir
+[strategie/extension-sources.md](./strategie/extension-sources.md)).
+
+## `PATCH /api/v1/sources/:id`
+
+Body `{ "enabled": true | false }` : active/désactive une source personnalisée. Une source
+désactivée n'est plus interrogée à l'ingestion mais ses articles déjà ingérés restent visibles.
+
+## `DELETE /api/v1/sources/:id`
+
+Supprime une source personnalisée. Si des articles lui sont déjà rattachés, elle est
+**désactivée** au lieu d'être supprimée (les articles sont conservés). Réponse :
+`{ "outcome": "deleted" | "disabled" }`.
+
 ## Exemple d'intégration depuis une autre application
 
 ```js

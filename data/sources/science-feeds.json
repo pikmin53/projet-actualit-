@@ -1,0 +1,22 @@
+{
+  "_commentaire": "Couche publications scientifiques (docs/strategie/extension-sources.md, couche 4). kind='announcement' : flux curatés (blogs officiels des labos, agences spatiales) gardés en entier. kind='filtered' : flux à fort volume (arXiv, agrégateurs de communiqués) dont on ne garde que les items correspondant à la liste de veille data/sources/science-watchlist.json. EurekAlert n'a plus de flux RSS public : Phys.org et ScienceDaily agrègent les mêmes communiqués institutionnels. Anthropic n'a pas de flux RSS : couvert par une recherche Google News dédiée.",
+  "feeds": [
+    { "name": "OpenAI News", "homepage": "https://openai.com/news", "rssUrl": "https://openai.com/news/rss.xml", "kind": "announcement" },
+    { "name": "Google DeepMind Blog", "homepage": "https://deepmind.google/blog", "rssUrl": "https://deepmind.google/blog/rss.xml", "kind": "announcement" },
+    { "name": "Hugging Face Blog", "homepage": "https://huggingface.co/blog", "rssUrl": "https://huggingface.co/blog/feed.xml", "kind": "announcement" },
+    { "name": "Anthropic / Claude (veille presse)", "homepage": "https://www.anthropic.com/news", "rssUrl": "https://news.google.com/rss/search?q=Anthropic%20OR%20%22Claude%20AI%22%20when:2d&hl=en-US&gl=US&ceid=US:en", "kind": "announcement" },
+    { "name": "NVIDIA Blog", "homepage": "https://blogs.nvidia.com", "rssUrl": "https://blogs.nvidia.com/feed/", "kind": "filtered" },
+    { "name": "NASA News", "homepage": "https://www.nasa.gov/news", "rssUrl": "https://www.nasa.gov/news-release/feed/", "kind": "announcement" },
+    { "name": "ESA Space News", "homepage": "https://www.esa.int", "rssUrl": "https://www.esa.int/rssfeed/Our_Activities/Space_News", "kind": "announcement" },
+    { "name": "Nature News", "homepage": "https://www.nature.com", "rssUrl": "https://www.nature.com/nature.rss", "kind": "filtered" },
+    { "name": "Science Magazine News", "homepage": "https://www.science.org/news", "rssUrl": "https://www.science.org/rss/news_current.xml", "kind": "filtered" },
+    { "name": "Phys.org", "homepage": "https://phys.org", "rssUrl": "https://phys.org/rss-feed/", "kind": "filtered" },
+    { "name": "ScienceDaily", "homepage": "https://www.sciencedaily.com", "rssUrl": "https://www.sciencedaily.com/rss/top/science.xml", "kind": "filtered" },
+    { "name": "arXiv cs.AI", "homepage": "https://arxiv.org/list/cs.AI/recent", "rssUrl": "https://rss.arxiv.org/rss/cs.AI", "kind": "filtered" },
+    { "name": "arXiv cs.LG", "homepage": "https://arxiv.org/list/cs.LG/recent", "rssUrl": "https://rss.arxiv.org/rss/cs.LG", "kind": "filtered" },
+    { "name": "arXiv cs.CL", "homepage": "https://arxiv.org/list/cs.CL/recent", "rssUrl": "https://rss.arxiv.org/rss/cs.CL", "kind": "filtered" },
+    { "name": "arXiv quant-ph", "homepage": "https://arxiv.org/list/quant-ph/recent", "rssUrl": "https://rss.arxiv.org/rss/quant-ph", "kind": "filtered" },
+    { "name": "arXiv astro-ph", "homepage": "https://arxiv.org/list/astro-ph/recent", "rssUrl": "https://rss.arxiv.org/rss/astro-ph", "kind": "filtered" },
+    { "name": "medRxiv", "homepage": "https://www.medrxiv.org", "rssUrl": "https://connect.medrxiv.org/medrxiv_xml.php?subject=all", "kind": "filtered" }
+  ]
+}

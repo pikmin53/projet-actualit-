@@ -9,5 +9,6 @@ export const CATEGORY_COLORS: Record<string, string> = {
   politique: "#f2a93b",
   economique: "#e0577a",
   cybersecurite: "#d946ef",
+  science: "#818cf8",
   autre: "#9aa0ad",
 };

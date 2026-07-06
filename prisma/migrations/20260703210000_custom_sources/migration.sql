@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Source" ADD COLUMN "custom" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "Source" ADD COLUMN "enabled" BOOLEAN NOT NULL DEFAULT true;

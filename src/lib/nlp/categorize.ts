@@ -15,6 +15,12 @@ const CATEGORY_KEYWORDS: Record<Exclude<Category, "autre">, string[]> = {
     "logiciel", "software", "application", "smartphone", "informatique",
     "startup", "puce", "chip", "semi-conducteur", "semiconductor", "satellite", "spatial", "space launch",
   ],
+  science: [
+    "étude scientifique", "study finds", "researchers", "chercheurs", "scientists", "scientifiques",
+    "peer-reviewed", "arxiv", "préprint", "preprint", "découverte", "discovery", "expérience", "experiment",
+    "laboratoire", "laboratory", "publication scientifique", "revue scientifique", "journal nature",
+    "essai clinique", "clinical trial", "physicien", "physicist", "biologiste", "biologist", "astronome", "astronomer",
+  ],
   cybersecurite: [
     "cyberattaque", "cyberattack", "cyber attack", "cybersécurité", "cybersecurity", "ransomware", "rançongiciel",
     "data breach", "fuite de données", "vol de données", "données volées", "stolen data", "données personnelles compromises",

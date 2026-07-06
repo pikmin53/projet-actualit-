@@ -17,7 +17,7 @@ export default function SourcesList({ mainArticle, relatedArticles }: SourcesLis
 
   return (
     <section className="mt-8">
-      <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-white/50">
+      <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-fg/50">
         Sources ({all.length})
       </h2>
       <ul className="space-y-2">
@@ -27,11 +27,11 @@ export default function SourcesList({ mainArticle, relatedArticles }: SourcesLis
               href={article.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="truncate text-white/80 hover:text-white hover:underline"
+              className="truncate text-fg/80 hover:text-fg hover:underline"
             >
               {article.source.name} — {article.title}
             </a>
-            <span className="shrink-0 text-xs text-white/40">
+            <span className="shrink-0 text-xs text-fg/40">
               {new Date(article.publishedAt).toLocaleDateString("fr-FR")}
             </span>
           </li>

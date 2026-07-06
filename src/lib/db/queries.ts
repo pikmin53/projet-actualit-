@@ -124,6 +124,64 @@ export async function upsertSource(feed: { name: string; homepage: string; rssUr
   });
 }
 
+// --- Sources personnalisées (ajoutées via la page Paramètres, voir /api/v1/sources) ---
+
+/** Retrouve une source par l'URL de son flux (clé d'unicité), ou `null`. */
+export async function findSourceByRssUrl(rssUrl: string) {
+  return prisma.source.findUnique({ where: { rssUrl } });
+}
+
+/** Crée une source personnalisée (flag `custom`), interrogée à chaque ingestion tant qu'elle est active. */
+export async function createCustomSource(data: {
+  name: string;
+  homepage: string;
+  rssUrl: string;
+  country: string;
+  language: string;
+}) {
+  return prisma.source.create({ data: { ...data, custom: true } });
+}
+
+/** Toutes les sources personnalisées (actives ou non), avec leur nombre d'articles, pour la page Paramètres. */
+export async function listCustomSources() {
+  return prisma.source.findMany({
+    where: { custom: true },
+    orderBy: { createdAt: "desc" },
+    include: { _count: { select: { articles: true } } },
+  });
+}
+
+/** Les sources personnalisées actives, à interroger pendant l'ingestion (voir scripts/ingest.ts). */
+export async function getEnabledCustomSources() {
+  return prisma.source.findMany({ where: { custom: true, enabled: true } });
+}
+
+/** Active/désactive une source personnalisée. Renvoie `null` si elle n'existe pas ou n'est pas custom. */
+export async function setCustomSourceEnabled(id: string, enabled: boolean) {
+  const source = await prisma.source.findUnique({ where: { id } });
+  if (!source || !source.custom) return null;
+  return prisma.source.update({ where: { id }, data: { enabled } });
+}
+
+/**
+ * Supprime une source personnalisée. Si des articles lui sont déjà rattachés, elle est
+ * seulement désactivée (pour ne pas casser la relation ni perdre les articles ingérés).
+ * @returns "deleted" | "disabled", ou `null` si la source n'existe pas ou n'est pas custom.
+ */
+export async function deleteCustomSource(id: string): Promise<"deleted" | "disabled" | null> {
+  const source = await prisma.source.findUnique({
+    where: { id },
+    include: { _count: { select: { articles: true } } },
+  });
+  if (!source || !source.custom) return null;
+  if (source._count.articles > 0) {
+    await prisma.source.update({ where: { id }, data: { enabled: false } });
+    return "disabled";
+  }
+  await prisma.source.delete({ where: { id } });
+  return "deleted";
+}
+
 /**
  * Renvoie les clusters d'évènements récents d'une catégorie donnée, candidats pour le rattachement
  * d'un nouvel article (voir `lib/nlp/cluster.ts`).
@@ -235,4 +293,69 @@ export async function getClusterById(id: string) {
     where: { id },
     include: { articles: { include: { source: true } } },
   });
+}
+
+// ---------------------------------------------------------------------------
+// Signaux sociaux (couche 3 : évènements candidats en attente de confirmation presse)
+// ---------------------------------------------------------------------------
+
+/** Vrai si ce post social a déjà été enregistré (clé: permalien du post). */
+export async function socialSignalExists(url: string): Promise<boolean> {
+  const existing = await prisma.socialSignal.findUnique({ where: { url }, select: { id: true } });
+  return existing !== null;
+}
+
+/** Enregistre un nouveau signal social (évènement candidat, non publié). */
+export async function createSocialSignal(data: {
+  platform: string;
+  community: string;
+  title: string;
+  url: string;
+  externalUrl?: string | null;
+  postedAt: Date;
+  expiresAt: Date;
+}) {
+  return prisma.socialSignal.create({ data });
+}
+
+/** Signaux encore actifs : non confirmés et non expirés. */
+export async function getActiveSocialSignals() {
+  return prisma.socialSignal.findMany({
+    where: { confirmedClusterId: null, expiresAt: { gte: new Date() } },
+  });
+}
+
+/**
+ * Marque un signal comme confirmé par un cluster de presse et incrémente le compteur de
+ * confirmations sociales du cluster (utilisé par la règle "breaking", voir src/lib/nlp/breaking.ts).
+ */
+export async function confirmSocialSignal(signalId: string, clusterId: string) {
+  return prisma.$transaction([
+    prisma.socialSignal.update({ where: { id: signalId }, data: { confirmedClusterId: clusterId } }),
+    prisma.eventCluster.update({
+      where: { id: clusterId },
+      data: { socialConfirmations: { increment: 1 } },
+    }),
+  ]);
+}
+
+/** Nombre de confirmations sociales d'un cluster (0 si le cluster n'existe pas). */
+export async function getClusterSocialConfirmations(clusterId: string): Promise<number> {
+  const cluster = await prisma.eventCluster.findUnique({
+    where: { id: clusterId },
+    select: { socialConfirmations: true },
+  });
+  return cluster?.socialConfirmations ?? 0;
+}
+
+/**
+ * Purge les signaux sociaux expirés sans confirmation : le principe de la couche sociale est
+ * qu'un signal non recoupé par la presse dans la fenêtre n'est jamais publié ni conservé.
+ * @returns Le nombre de signaux purgés.
+ */
+export async function purgeExpiredSocialSignals(): Promise<number> {
+  const result = await prisma.socialSignal.deleteMany({
+    where: { confirmedClusterId: null, expiresAt: { lt: new Date() } },
+  });
+  return result.count;
 }

@@ -25,7 +25,7 @@ export default function NewsCard({ article, selected, onSelect }: NewsCardProps)
     <div
       onClick={() => onSelect(article.id)}
       className={`cursor-pointer rounded-lg border p-4 transition ${
-        selected ? "border-white/40 bg-white/10" : "border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"
+        selected ? "border-fg/40 bg-fg/10" : "border-fg/10 bg-fg/[0.03] hover:bg-fg/[0.06]"
       }`}
     >
       <div className="mb-1 flex items-center gap-2 text-xs">
@@ -37,14 +37,14 @@ export default function NewsCard({ article, selected, onSelect }: NewsCardProps)
         <span className="rounded px-2 py-0.5 font-medium" style={{ backgroundColor: `${color}33`, color }}>
           {article.category}
         </span>
-        {article.locationLabel && <span className="text-white/50">📍 {article.locationLabel}</span>}
-        <span className="ml-auto text-white/40">{publishedDate}</span>
+        {article.locationLabel && <span className="text-fg/50">📍 {article.locationLabel}</span>}
+        <span className="ml-auto text-fg/40">{publishedDate}</span>
       </div>
       <Link href={`/article/${article.id}`} className="font-medium leading-snug hover:underline">
         {article.title}
       </Link>
-      <p className="mt-1 line-clamp-2 text-sm text-white/60">{article.summary}</p>
-      <div className="mt-2 flex items-center justify-between text-xs text-white/40">
+      <p className="mt-1 line-clamp-2 text-sm text-fg/60">{article.summary}</p>
+      <div className="mt-2 flex items-center justify-between text-xs text-fg/40">
         <span>{article.source.name}</span>
         <span>★ {article.popularityScore.toFixed(1)}</span>
       </div>

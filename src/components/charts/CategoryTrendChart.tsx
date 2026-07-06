@@ -25,10 +25,10 @@ export default function CategoryTrendChart({ data, categories }: CategoryTrendCh
   return (
     <ResponsiveContainer width="100%" height={420}>
       <LineChart data={data} margin={{ top: 10, right: 20, bottom: 10, left: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-        <XAxis dataKey="weekStart" stroke="rgba(255,255,255,0.4)" fontSize={12} />
-        <YAxis stroke="rgba(255,255,255,0.4)" fontSize={12} allowDecimals={false} />
-        <Tooltip contentStyle={{ background: "#0d1220", border: "1px solid rgba(255,255,255,0.1)" }} />
+        <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--fg) / 0.08)" />
+        <XAxis dataKey="weekStart" stroke="rgb(var(--fg) / 0.4)" fontSize={12} />
+        <YAxis stroke="rgb(var(--fg) / 0.4)" fontSize={12} allowDecimals={false} />
+        <Tooltip contentStyle={{ background: "rgb(var(--bg))", border: "1px solid rgb(var(--fg) / 0.1)" }} />
         <Legend />
         {categories.map((category) => (
           <Line

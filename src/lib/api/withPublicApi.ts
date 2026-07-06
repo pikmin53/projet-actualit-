@@ -7,11 +7,14 @@ import { checkRateLimit, getClientIp } from "./rateLimit";
  * Enveloppe un handler de route `/api/v1/*` pour lui appliquer de façon uniforme : CORS,
  * authentification optionnelle par clé API, limite de débit, et gestion d'erreur générique.
  * Évite de dupliquer cette logique dans chaque fichier `route.ts`.
- * @param handler Le handler GET réel de la route, qui peut se concentrer sur la logique métier.
- * @returns Un handler Next.js prêt à être exporté comme `GET` depuis un `route.ts`.
+ * @param handler Le handler réel de la route, qui peut se concentrer sur la logique métier.
+ *                Reçoit aussi le contexte Next.js (`{ params }` des routes dynamiques).
+ * @returns Un handler Next.js prêt à être exporté comme `GET`/`POST`/... depuis un `route.ts`.
  */
-export function withPublicApi(handler: (req: NextRequest) => Promise<NextResponse>) {
-  return async function (req: NextRequest) {
+export function withPublicApi<Context = unknown>(
+  handler: (req: NextRequest, context: Context) => Promise<NextResponse>
+) {
+  return async function (req: NextRequest, context: Context) {
     const cors = buildCorsHeaders(req.headers.get("origin"));
 
     if (!isAuthorized(req)) {
@@ -31,7 +34,7 @@ export function withPublicApi(handler: (req: NextRequest) => Promise<NextRespons
     }
 
     try {
-      const response = await handler(req);
+      const response = await handler(req, context);
       for (const [key, value] of Object.entries(cors)) response.headers.set(key, value);
       return response;
     } catch (error) {

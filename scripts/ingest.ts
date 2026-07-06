@@ -14,6 +14,9 @@ import { fetchApiArticles, type ExternalArticle } from "@/lib/ingestion/fetchNew
 import { fetchGoogleNewsArticles } from "@/lib/ingestion/fetchGoogleNews";
 import { fetchGdeltArticles } from "@/lib/ingestion/fetchGdelt";
 import { fetchAlertArticles } from "@/lib/ingestion/fetchAlerts";
+import { fetchSocialPosts, socialConfig } from "@/lib/ingestion/fetchSocial";
+import { fetchScienceArticles } from "@/lib/ingestion/fetchScience";
+import { fetchArticleBody, ENRICH_MIN_CONTENT_LENGTH } from "@/lib/ingestion/enrichContent";
 import { normalizeArticle } from "@/lib/ingestion/normalize";
 import { dedupeArticles } from "@/lib/ingestion/dedupe";
 import { categorize } from "@/lib/nlp/categorize";
@@ -21,11 +24,13 @@ import { geolocate, countryCentroid } from "@/lib/nlp/geolocate";
 import { findBestCluster, CLUSTER_TIME_WINDOW_HOURS } from "@/lib/nlp/cluster";
 import { computePopularity } from "@/lib/nlp/popularity";
 import { computeCyberImpactBoost } from "@/lib/nlp/cyberImpact";
+import { computeScienceImpactBoost } from "@/lib/nlp/scienceImpact";
 import { computeSourceVelocity, isBreaking, VELOCITY_WINDOW_HOURS } from "@/lib/nlp/breaking";
 import { getSummarizer, getInterpreter } from "@/lib/nlp/providers/registry";
 import type { Category, RawArticle } from "@/lib/types";
 import {
   upsertSource,
+  getEnabledCustomSources,
   findRecentClusters,
   createCluster,
   updateClusterInterpretation,
@@ -35,6 +40,12 @@ import {
   updateClusterSignals,
   clearStaleBreakingClusters,
   getClusterArticles,
+  getClusterSocialConfirmations,
+  socialSignalExists,
+  createSocialSignal,
+  getActiveSocialSignals,
+  confirmSocialSignal,
+  purgeExpiredSocialSignals,
 } from "@/lib/db/queries";
 
 interface RssFeedDefinition {
@@ -91,8 +102,11 @@ async function externalToRaw(externalArticles: ExternalArticle[]): Promise<RawAr
  */
 async function collectRawArticles(): Promise<RawArticle[]> {
   const feeds = rssFeeds as RssFeedDefinition[];
+  // Sources ajoutées par l'utilisateur via la page Paramètres (POST /api/v1/sources) : déjà en
+  // base avec le flag `custom`, elles s'ajoutent aux flux RSS "connus" de data/sources/.
+  const customSources = await getEnabledCustomSources();
 
-  const [rssResults, googleNewsArticles, gdeltArticles, alertArticles, apiArticles] = await Promise.all([
+  const [rssResults, customResults, googleNewsArticles, gdeltArticles, alertArticles, scienceArticles, apiArticles] = await Promise.all([
     Promise.all(
       feeds.map(async (feed) => {
         const source = await upsertSource(feed);
@@ -100,19 +114,33 @@ async function collectRawArticles(): Promise<RawArticle[]> {
         return fetchRssArticles(feedSource);
       })
     ),
+    Promise.all(
+      customSources.map((source) =>
+        fetchRssArticles({ id: source.id, name: source.name, rssUrl: source.rssUrl, country: source.country })
+      )
+    ),
     fetchGoogleNewsArticles(),
     fetchGdeltArticles(),
     fetchAlertArticles(),
+    fetchScienceArticles(),
     fetchApiArticles(),
   ]);
 
   console.log(
-    `[ingest] Répartition brute : ${rssResults.flat().length} RSS, ${googleNewsArticles.length} Google News, ` +
-      `${gdeltArticles.length} GDELT, ${alertArticles.length} alertes, ${apiArticles.length} API.`
+    `[ingest] Répartition brute : ${rssResults.flat().length} RSS, ${customResults.flat().length} sources personnalisées ` +
+      `(${customSources.length} flux), ${googleNewsArticles.length} Google News, ` +
+      `${gdeltArticles.length} GDELT, ${alertArticles.length} alertes, ${scienceArticles.length} science, ` +
+      `${apiArticles.length} API.`
   );
 
-  const externalAsRaw = await externalToRaw([...googleNewsArticles, ...gdeltArticles, ...alertArticles, ...apiArticles]);
-  return [...rssResults.flat(), ...externalAsRaw];
+  const externalAsRaw = await externalToRaw([
+    ...googleNewsArticles,
+    ...gdeltArticles,
+    ...alertArticles,
+    ...scienceArticles,
+    ...apiArticles,
+  ]);
+  return [...rssResults.flat(), ...customResults.flat(), ...externalAsRaw];
 }
 
 /** Rattache un article à un cluster d'évènement existant, ou en crée un nouveau. */
@@ -150,20 +178,78 @@ async function refreshCluster(clusterId: string, category: Category) {
 
   const distinctSourceCount = await countDistinctSourcesInCluster(clusterId);
   const mostRecent = articles.reduce((latest, a) => (a.publishedAt > latest ? a.publishedAt : latest), articles[0].publishedAt);
-  // Les cyberattaques à fort impact (services personnels, conséquences nationales, grands pays)
-  // sont boostées pour remonter en tête — voir cyberImpact.ts et data/sources/cyber-watchlist.json.
+  // Boosts d'impact par catégorie : cyberattaques à fort impact (services personnels,
+  // conséquences nationales...) et publications scientifiques des sujets suivis (IA en tête) —
+  // voir cyberImpact.ts / scienceImpact.ts et les watchlists correspondantes dans data/sources/.
+  const clusterTexts = articles.map((a) => `${a.title} ${a.rawContent}`);
   const impactBoost =
     category === "cybersecurite"
-      ? computeCyberImpactBoost(articles.map((a) => `${a.title} ${a.rawContent}`))
-      : 1;
+      ? computeCyberImpactBoost(clusterTexts)
+      : category === "science"
+        ? computeScienceImpactBoost(clusterTexts)
+        : 1;
   const popularityScore = computePopularity(distinctSourceCount, mostRecent, new Date(), impactBoost);
 
   // Vélocité = sources distinctes sur la fenêtre récente : détecte l'emballement en cours
-  // ("breaking"), indépendamment du total cumulé. Voir src/lib/nlp/breaking.ts.
+  // ("breaking"), indépendamment du total cumulé. Une confirmation sociale (couche 3) abaisse
+  // le seuil d'une source. Voir src/lib/nlp/breaking.ts.
   const sourceVelocity = computeSourceVelocity(
     articles.map((a) => ({ sourceId: a.sourceId, publishedAt: a.publishedAt }))
   );
-  await updateClusterSignals(clusterId, { popularityScore, breaking: isBreaking(sourceVelocity), sourceVelocity });
+  const socialConfirmations = await getClusterSocialConfirmations(clusterId);
+  await updateClusterSignals(clusterId, {
+    popularityScore,
+    breaking: isBreaking(sourceVelocity, socialConfirmations),
+    sourceVelocity,
+  });
+}
+
+/** Nombre maximal de pages d'articles récupérées pour enrichissement par passe (borne le temps). */
+const MAX_ENRICHMENTS_PER_RUN = 40;
+
+/**
+ * Couche sociale (phase 3) : enregistre les nouveaux posts Reddit comme "évènements candidats",
+ * confirme ceux qui recoupent un cluster de presse récent (même heuristique de similarité que le
+ * clustering d'articles), et purge les candidats expirés jamais confirmés. Un signal social seul
+ * n'est jamais publié — voir docs/strategie/extension-sources.md.
+ */
+async function processSocialSignals() {
+  const posts = await fetchSocialPosts();
+  const expiresAt = new Date(Date.now() + socialConfig.confirmationWindowHours * 60 * 60 * 1000);
+
+  let newSignals = 0;
+  for (const post of posts) {
+    if (await socialSignalExists(post.url)) continue;
+    await createSocialSignal({
+      platform: post.platform,
+      community: post.community,
+      title: post.title,
+      url: post.url,
+      externalUrl: post.externalUrl ?? null,
+      postedAt: post.postedAt,
+      expiresAt,
+    });
+    newSignals += 1;
+  }
+
+  let confirmed = 0;
+  for (const signal of await getActiveSocialSignals()) {
+    const category = categorize(signal.title);
+    const candidates = await findRecentClusters(category, CLUSTER_TIME_WINDOW_HOURS);
+    const clusterId = findBestCluster(signal.title, category, candidates);
+    if (!clusterId) continue;
+
+    await confirmSocialSignal(signal.id, clusterId);
+    confirmed += 1;
+    // La confirmation peut faire basculer le cluster en "breaking" : on recalcule ses signaux.
+    await refreshCluster(clusterId, category as Category);
+  }
+
+  const purged = await purgeExpiredSocialSignals();
+  console.log(
+    `[ingest] Social : ${posts.length} posts relevés, ${newSignals} nouveaux candidats, ` +
+      `${confirmed} confirmés par la presse, ${purged} expirés purgés.`
+  );
 }
 
 async function run() {
@@ -177,11 +263,22 @@ async function run() {
   const summarizer = getSummarizer();
   let created = 0;
   let skipped = 0;
+  let enriched = 0;
 
   for (const article of deduped) {
     if (await articleExists(article.url)) {
       skipped += 1;
       continue;
+    }
+
+    // Contenu trop maigre (titre + chapeau) → on va chercher les paragraphes de la page pour
+    // donner de la matière au résumé et à l'interprétation. Voir enrichContent.ts.
+    if (article.rawContent.length < ENRICH_MIN_CONTENT_LENGTH && enriched < MAX_ENRICHMENTS_PER_RUN) {
+      const body = await fetchArticleBody(article.url);
+      if (body) {
+        article.rawContent = `${article.rawContent} ${body}`.slice(0, 4000);
+        enriched += 1;
+      }
     }
 
     const fullText = `${article.title} ${article.rawContent}`;
@@ -197,7 +294,7 @@ async function run() {
             lng: article.lng,
           }
         : geolocate(fullText) ?? countryCentroid(article.sourceCountry);
-    const summary = await summarizer.summarize(article.rawContent, { maxSentences: 3 });
+    const summary = await summarizer.summarize(article.rawContent, { maxSentences: 4 });
     const clusterId = await resolveCluster(article.title, category);
 
     await createArticle({
@@ -220,10 +317,12 @@ async function run() {
     created += 1;
   }
 
+  await processSocialSignals();
+
   const clearedBreaking = await clearStaleBreakingClusters(VELOCITY_WINDOW_HOURS);
   console.log(
-    `[ingest] Terminé : ${created} nouveaux articles, ${skipped} doublons ignorés, ` +
-      `${clearedBreaking} clusters "breaking" retombés.`
+    `[ingest] Terminé : ${created} nouveaux articles (${enriched} enrichis depuis leur page), ` +
+      `${skipped} doublons ignorés, ${clearedBreaking} clusters "breaking" retombés.`
   );
 }
 

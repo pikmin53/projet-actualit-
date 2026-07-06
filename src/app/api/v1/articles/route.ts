@@ -3,7 +3,15 @@ import { withPublicApi, publicApiOptionsHandler } from "@/lib/api/withPublicApi"
 import { listArticles } from "@/lib/db/queries";
 import type { Category, SortKey } from "@/lib/types";
 
-const VALID_CATEGORIES: Category[] = ["environnement", "technologie", "politique", "economique", "cybersecurite", "autre"];
+const VALID_CATEGORIES: Category[] = [
+  "environnement",
+  "technologie",
+  "politique",
+  "economique",
+  "cybersecurite",
+  "science",
+  "autre",
+];
 const VALID_SORTS: SortKey[] = ["popularity", "date"];
 
 /**

@@ -23,22 +23,57 @@ interface NewsGlobeProps {
   onSelectPoint: (id: string) => void;
 }
 
-/** Couleurs du thème "néon" du globe (sphère sombre, continents et halo cyan). */
-const NEON = {
-  sphere: "#0b1026",
-  land: "rgba(34, 211, 238, 0.55)",
-  atmosphere: "#22d3ee",
+/** Palette du globe pour chaque thème de l'app (voir /parametres et globals.css). */
+interface GlobePalette {
+  sphere: string;
+  land: string;
+  atmosphere: string;
+  /** Pride : chaque pays prend une couleur du drapeau arc-en-ciel. 🏳️‍🌈 */
+  rainbowLand?: boolean;
+}
+
+const GLOBE_PALETTES: Record<string, GlobePalette> = {
+  sombre: { sphere: "#0b1026", land: "rgba(34, 211, 238, 0.55)", atmosphere: "#22d3ee" },
+  jour: { sphere: "#dce7f5", land: "rgba(29, 78, 216, 0.65)", atmosphere: "#0284c7" },
+  pride: { sphere: "#160826", land: "rgba(236, 72, 153, 0.6)", atmosphere: "#ec4899", rainbowLand: true },
+  hacker: { sphere: "#02120a", land: "rgba(0, 255, 136, 0.5)", atmosphere: "#00ff88" },
 };
+
+/** Drapeau arc-en-ciel (6 bandes), légèrement translucide pour garder les points lisibles. */
+const RAINBOW_LAND = ["#e40303dd", "#ff8c00dd", "#ffed00dd", "#008026dd", "#24408edd", "#732982dd"];
+
+/** Couleur arc-en-ciel stable pour un pays donné (hash de son nom → une des 6 bandes). */
+function rainbowColorFor(feature: object): string {
+  const name = String((feature as { properties?: { SOVEREIGNT?: string } }).properties?.SOVEREIGNT ?? "");
+  let hash = 0;
+  for (let i = 0; i < name.length; i += 1) hash = (hash * 31 + name.charCodeAt(i)) | 0;
+  return RAINBOW_LAND[Math.abs(hash) % RAINBOW_LAND.length];
+}
+
+/** Lit le thème actif sur <html data-theme> et suit ses changements (page Paramètres). */
+function useActiveTheme(): string {
+  const [theme, setTheme] = useState("sombre");
+  useEffect(() => {
+    const el = document.documentElement;
+    const read = () => setTheme(el.dataset.theme ?? "sombre");
+    read();
+    const observer = new MutationObserver(read);
+    observer.observe(el, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => observer.disconnect();
+  }, []);
+  return theme;
+}
 
 /**
  * Globe 3D animé : un point par article géolocalisé, coloré par catégorie et dimensionné selon
  * la popularité. La caméra vole automatiquement vers le point sélectionné (`selectedId`), pour
  * rester synchronisée avec la liste d'actualités affichée à côté.
  *
- * Rendu "néon" : sphère sombre + continents en hexagones cyan (GeoJSON servi depuis
- * public/geo/, aucune dépendance réseau externe) + halo atmosphérique. Si le GeoJSON ne charge
- * pas, on retombe sur la texture satellite nocturne d'origine, qui reste lisible.
- * Quand aucune localisation n'est sélectionnée, le globe tourne lentement sur lui-même.
+ * Rendu "néon" : sphère + continents en hexagones (GeoJSON servi depuis public/geo/, aucune
+ * dépendance réseau externe) + halo atmosphérique, aux couleurs du thème actif de l'app
+ * (GLOBE_PALETTES ; en pride, chaque pays prend une bande du drapeau arc-en-ciel). Si le
+ * GeoJSON ne charge pas, on retombe sur la texture satellite nocturne d'origine, qui reste
+ * lisible. Quand aucune localisation n'est sélectionnée, le globe tourne lentement sur lui-même.
  *
  * Deux subtilités d'intégration avec Next.js / une mise en page non plein-écran :
  * - `react-globe.gl` utilise `window`/WebGL et doit donc être chargé uniquement côté client.
@@ -58,7 +93,8 @@ export default function NewsGlobe({ points, selectedId, onSelectPoint }: NewsGlo
   const [size, setSize] = useState({ width: 0, height: 0 });
   // null = chargement en cours, [] = échec (bascule sur la texture), sinon features GeoJSON.
   const [landPolygons, setLandPolygons] = useState<object[] | null>(null);
-  const [globeReady, setGlobeReady] = useState(false);
+  const theme = useActiveTheme();
+  const palette = GLOBE_PALETTES[theme] ?? GLOBE_PALETTES.sombre;
 
   useEffect(() => {
     import("react-globe.gl").then((mod) => setGlobeComponent(mod.default));
@@ -96,15 +132,33 @@ export default function NewsGlobe({ points, selectedId, onSelectPoint }: NewsGlo
 
   // Rotation passive : active tant qu'aucune localisation n'est affichée, coupée dès qu'un
   // point est sélectionné pour ne pas dériver hors de la zone visée par la caméra.
+  // L'instance globe.gl n'est pas disponible immédiatement après le montage (import dynamique
+  // + initialisation WebGL) et onGlobeReady n'est pas fiable selon les versions : on réessaie
+  // via requestAnimationFrame jusqu'à ce que les contrôles répondent.
+  const useNeonTheme = landPolygons !== null && landPolygons.length > 0;
   useEffect(() => {
-    if (!globeReady || !globeRef.current) return;
-    const controls = globeRef.current.controls();
-    controls.autoRotate = !selectedId;
-    controls.autoRotateSpeed = 0.6;
-  }, [globeReady, selectedId]);
+    let cancelled = false;
+    const setup = () => {
+      if (cancelled) return;
+      const globe = globeRef.current;
+      if (globe?.controls) {
+        const controls = globe.controls();
+        controls.autoRotate = !selectedId;
+        controls.autoRotateSpeed = 0.6;
+        if (useNeonTheme && globe.globeMaterial) {
+          globe.globeMaterial().color.set(palette.sphere);
+        }
+        return;
+      }
+      requestAnimationFrame(setup);
+    };
+    setup();
+    return () => {
+      cancelled = true;
+    };
+  }, [GlobeComponent, landPolygons, size, selectedId, useNeonTheme, palette]);
 
   const Globe = GlobeComponent;
-  const useNeonTheme = landPolygons !== null && landPolygons.length > 0;
   // Anneaux pulsants : rouge sur les évènements "breaking", couleur de catégorie sur la sélection.
   const ringPoints = points.filter((p) => p.breaking || p.id === selectedId);
 
@@ -117,18 +171,12 @@ export default function NewsGlobe({ points, selectedId, onSelectPoint }: NewsGlo
           height={size.height}
           globeImageUrl={useNeonTheme ? null : "//unpkg.com/three-globe/example/img/earth-night.jpg"}
           backgroundColor="rgba(0,0,0,0)"
-          atmosphereColor={NEON.atmosphere}
+          atmosphereColor={palette.atmosphere}
           atmosphereAltitude={0.2}
           hexPolygonsData={useNeonTheme ? landPolygons : []}
           hexPolygonResolution={3}
           hexPolygonMargin={0.65}
-          hexPolygonColor={() => NEON.land}
-          onGlobeReady={() => {
-            if (useNeonTheme && globeRef.current) {
-              globeRef.current.globeMaterial().color.set(NEON.sphere);
-            }
-            setGlobeReady(true);
-          }}
+          hexPolygonColor={palette.rainbowLand ? rainbowColorFor : () => palette.land}
           pointsData={points}
           pointLat="lat"
           pointLng="lng"
@@ -144,7 +192,7 @@ export default function NewsGlobe({ points, selectedId, onSelectPoint }: NewsGlo
           ringColor={(p: object) => {
             const point = p as GlobePoint;
             if (point.breaking && point.id !== selectedId) return "#ff4d4d";
-            return CATEGORY_COLORS[point.category] ?? NEON.atmosphere;
+            return CATEGORY_COLORS[point.category] ?? palette.atmosphere;
           }}
           ringMaxRadius={4}
           ringPropagationSpeed={2}

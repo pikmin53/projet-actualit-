@@ -10,6 +10,7 @@ const CATEGORIES: { value: Category | "toutes"; label: string }[] = [
   { value: "politique", label: "Politique" },
   { value: "economique", label: "Économique" },
   { value: "cybersecurite", label: "Cyberattaques" },
+  { value: "science", label: "Science" },
 ];
 
 interface FilterBarProps {
@@ -22,20 +23,20 @@ interface FilterBarProps {
 /** Barre de filtre par catégorie (boutons) et de tri (popularité/date) au-dessus de la liste. */
 export default function FilterBar({ category, sort, onCategoryChange, onSortChange }: FilterBarProps) {
   return (
-    <div className="flex flex-wrap items-center gap-2 border-b border-white/10 p-4">
+    <div className="flex flex-wrap items-center gap-2 border-b border-fg/10 p-4">
       <div className="flex flex-wrap gap-2">
         {CATEGORIES.map((c) => {
           const active = c.value === category;
-          const color = c.value === "toutes" ? "#ffffff" : CATEGORY_COLORS[c.value];
+          const color = c.value === "toutes" ? "rgb(var(--fg))" : CATEGORY_COLORS[c.value];
           return (
             <button
               key={c.value}
               onClick={() => onCategoryChange(c.value)}
               className="rounded-full border px-3 py-1 text-xs transition"
               style={{
-                borderColor: active ? color : "rgba(255,255,255,0.15)",
+                borderColor: active ? color : "rgb(var(--fg) / 0.15)",
                 backgroundColor: active ? `${color}26` : "transparent",
-                color: active ? color : "rgba(255,255,255,0.7)",
+                color: active ? color : "rgb(var(--fg) / 0.7)",
               }}
             >
               {c.label}
@@ -47,7 +48,7 @@ export default function FilterBar({ category, sort, onCategoryChange, onSortChan
       <select
         value={sort}
         onChange={(e) => onSortChange(e.target.value as SortKey)}
-        className="ml-auto rounded border border-white/15 bg-transparent px-2 py-1 text-xs text-white/80"
+        className="ml-auto rounded border border-fg/15 bg-transparent px-2 py-1 text-xs text-fg/80"
       >
         <option value="popularity">Popularité</option>
         <option value="date">Date</option>

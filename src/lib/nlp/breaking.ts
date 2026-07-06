@@ -24,7 +24,15 @@ export function computeSourceVelocity(
   return recentSources.size;
 }
 
-/** Vrai si la vélocité dépasse le seuil "breaking". */
-export function isBreaking(sourceVelocity: number): boolean {
-  return sourceVelocity >= BREAKING_MIN_DISTINCT_SOURCES;
+/**
+ * Vrai si le cluster est "breaking" : soit la vélocité seule dépasse le seuil, soit une
+ * confirmation croisée abaisse le seuil d'une source — un évènement repéré à la fois par la
+ * presse ET par les réseaux sociaux est plus significatif qu'un simple pic de reprises
+ * (voir docs/strategie/extension-sources.md, "Détection du marquant").
+ * @param sourceVelocity Sources distinctes dans la fenêtre récente.
+ * @param socialConfirmations Signaux sociaux confirmés rattachés au cluster.
+ */
+export function isBreaking(sourceVelocity: number, socialConfirmations = 0): boolean {
+  if (sourceVelocity >= BREAKING_MIN_DISTINCT_SOURCES) return true;
+  return socialConfirmations >= 1 && sourceVelocity >= BREAKING_MIN_DISTINCT_SOURCES - 1;
 }

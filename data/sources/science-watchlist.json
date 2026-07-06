@@ -1,0 +1,50 @@
+{
+  "_commentaire": "Veille scientifique par priorité décroissante (voir src/lib/nlp/scienceImpact.ts). Double usage : filtrer les flux à fort volume (arXiv & co, kind='filtered' dans science-feeds.json) et booster la popularité des clusters 'science'. Le premier tier qui matche gagne : l'IA d'abord (avancées, nouveaux modèles, mises à jour de ChatGPT/Claude/Gemini...), puis quantique & spatial, puis climat, enfin santé. Listes librement modifiables.",
+  "tiers": [
+    {
+      "id": "ia",
+      "boost": 2,
+      "keywords": [
+        "artificial intelligence", "intelligence artificielle", " ai ", " ia ",
+        "llm", "large language model", "language model", "foundation model", "modèle de langage",
+        "chatgpt", "gpt-", "openai", "claude", "anthropic", "gemini", "deepmind", "mistral", "llama",
+        "grok", "copilot", "hugging face",
+        "machine learning", "deep learning", "apprentissage automatique", "neural network",
+        "transformer", "diffusion model", "multimodal", "reasoning model", "agentic", " agents ",
+        "reinforcement learning", "rlhf", "fine-tuning", "state of the art", "benchmark",
+        "scaling law", "alignment", "superintelligence", "agi "
+      ]
+    },
+    {
+      "id": "quantique-spatial",
+      "boost": 1.6,
+      "keywords": [
+        "quantum", "quantique", "qubit", "entanglement", "intrication", "superconducting",
+        "quantum computer", "ordinateur quantique", "quantum supremacy", "correction d'erreur quantique",
+        "spacex", "nasa", "esa ", "ariane", "rocket launch", "fusée", "satellite", "orbit",
+        "mars", "lunar", "lune", "moon mission", "exoplanet", "exoplanète", "james webb",
+        "telescope", "télescope", "astronaut", "astronaute", "space station", "black hole", "trou noir"
+      ]
+    },
+    {
+      "id": "climat",
+      "boost": 1.4,
+      "keywords": [
+        "climate", "climat", "global warming", "réchauffement", "carbon capture", "carbone",
+        "emissions", "renewable energy", "énergie renouvelable", "solar power", "fusion energy",
+        "fusion nucléaire", "biodiversity", "biodiversité", "glacier", "ice sheet", "sea level",
+        "montée des eaux", "extreme weather", "permafrost", "geoengineering"
+      ]
+    },
+    {
+      "id": "sante",
+      "boost": 1.25,
+      "keywords": [
+        "cancer", "vaccine", "vaccin", "alzheimer", "parkinson", "clinical trial", "essai clinique",
+        "gene therapy", "thérapie génique", "crispr", "antibiotic", "antibiotique", "superbug",
+        "epidemic", "épidémie", "pandemic", "pandémie", "virus", "obesity", "obésité",
+        "diabetes", "diabète", "longevity", "longévité", "organ transplant", "immunotherapy", "immunothérapie"
+      ]
+    }
+  ]
+}

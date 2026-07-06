@@ -21,6 +21,8 @@ model Source {
   rssUrl    String    @unique
   country   String // code pays ISO 3166-1 alpha-2 d'origine de la rédaction, ex: "FR", "US"
   language  String // code langue ISO 639-1, ex: "fr", "en"
+  custom    Boolean   @default(false) // vrai si ajoutée par l'utilisateur via /parametres (POST /api/v1/sources), et non par data/sources/*.json
+  enabled   Boolean   @default(true) // une source custom désactivée est conservée (ses articles restent) mais n'est plus interrogée à l'ingestion
   createdAt DateTime  @default(now())
   articles  Article[]
 }
@@ -34,7 +36,7 @@ model Article {
   url             String        @unique
   rawContent      String // texte brut récupéré du flux (titre + description), utilisé par le pipeline NLP
   summary         String // résumé produit par le SummarizerProvider actif
-  category        String // "environnement" | "technologie" | "politique" | "economique" | "cybersecurite" | "autre"
+  category        String // "environnement" | "technologie" | "politique" | "economique" | "cybersecurite" | "science" | "autre"
   countryCode     String? // pays détecté par la géolocalisation heuristique
   locationLabel   String? // libellé humain du lieu détecté, ex: "Paris, France"
   lat             Float?
@@ -59,7 +61,28 @@ model EventCluster {
   interpretationRaw String // JSON sérialisé : { commonPoints, divergences, dominantKeywordsBySource, impactNote, generatedBy }
   breaking          Boolean   @default(false) // vrai si la vélocité dépasse le seuil "breaking", voir src/lib/nlp/breaking.ts
   sourceVelocity    Float     @default(0) // sources distinctes ayant publié dans la fenêtre de vélocité récente
+  socialConfirmations Int     @default(0) // signaux sociaux (Reddit...) rattachés à ce cluster, voir SocialSignal
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   articles          Article[]
+}
+
+/// Signal social (couche 3, voir docs/strategie/extension-sources.md) : un post Reddit/Bluesky
+/// détecté. Jamais publié tel quel — c'est un "évènement candidat" qui doit être confirmé par
+/// la presse (rattachement à un EventCluster) avant son expiration, sinon il est purgé.
+model SocialSignal {
+  id                 String   @id @default(cuid())
+  platform           String // "reddit" (puis "bluesky"...)
+  community          String // ex: "r/worldnews"
+  title              String
+  url                String   @unique // permalien du post
+  externalUrl        String? // URL de l'article pointé par le post, si présent
+  score              Int      @default(0) // upvotes au moment du relevé
+  postedAt           DateTime
+  createdAt          DateTime @default(now())
+  expiresAt          DateTime // au-delà : purgé s'il n'a pas été confirmé
+  confirmedClusterId String? // cluster de presse qui a confirmé ce signal
+
+  @@index([expiresAt])
+  @@index([confirmedClusterId])
 }
