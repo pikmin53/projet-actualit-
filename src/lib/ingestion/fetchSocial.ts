@@ -47,6 +47,20 @@ const redditParser: Parser<object, RedditAtomItem> = new Parser({
   headers: { "User-Agent": "GlobeActu/0.1 (open source news aggregator)" },
 });
 
+/**
+ * Espacement entre subreddits. Les IPs partagées des runners GitHub Actions épuisent vite
+ * le budget non authentifié de Reddit : constaté en prod (runs 138-140), 5 s ne suffisaient
+ * pas — seuls les 1-2 premiers subreddits passaient avant une rafale de 429.
+ */
+const SUBREDDIT_SPACING_MS = 10_000;
+/** Pause avant l'unique retry après un 429, le temps que la fenêtre de rate-limit se vide. */
+const RATE_LIMIT_RETRY_DELAY_MS = 30_000;
+
+/** rss-parser ne propage que le message ("Status code 429"), pas le statut HTTP. */
+function isRateLimitError(error: unknown): boolean {
+  return error instanceof Error && error.message.includes("Status code 429");
+}
+
 /** Extrait l'URL de l'article externe depuis le HTML du post Reddit (lien "[link]"). */
 function externalUrlFrom(content: string | undefined): string | undefined {
   const match = content?.match(/href="([^"]+)">\s*\[link\]/);
@@ -76,7 +90,8 @@ async function fetchSubreddit(subreddit: string): Promise<SocialPost[]> {
 
 /**
  * Récupère les posts des subreddits configurés (data/sources/social-sources.json),
- * séquentiellement avec une courte pause pour rester sous les limites de Reddit.
+ * séquentiellement avec une pause pour rester sous les limites de Reddit, et un retry
+ * espacé quand un subreddit répond 429.
  * @returns Les posts collectés ; un subreddit en échec est ignoré sans bloquer les autres.
  */
 export async function fetchSocialPosts(): Promise<SocialPost[]> {
@@ -84,12 +99,23 @@ export async function fetchSocialPosts(): Promise<SocialPost[]> {
 
   const posts: SocialPost[] = [];
   for (const [index, subreddit] of socialConfig.reddit.subreddits.entries()) {
-    // Reddit rate-limite vite les IP non authentifiées sur les flux RSS : 5 s entre subreddits.
-    if (index > 0) await new Promise((resolve) => setTimeout(resolve, 5000));
+    if (index > 0) await new Promise((resolve) => setTimeout(resolve, SUBREDDIT_SPACING_MS));
     try {
       posts.push(...(await fetchSubreddit(subreddit)));
     } catch (error) {
-      console.error(`[fetchSocialPosts] échec pour r/${subreddit}:`, error);
+      if (!isRateLimitError(error)) {
+        console.error(`[fetchSocialPosts] échec pour r/${subreddit}:`, error);
+        continue;
+      }
+      await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_RETRY_DELAY_MS));
+      try {
+        posts.push(...(await fetchSubreddit(subreddit)));
+      } catch (retryError) {
+        console.error(
+          `[fetchSocialPosts] échec pour r/${subreddit} (après retry rate-limit):`,
+          retryError,
+        );
+      }
     }
   }
   return posts;

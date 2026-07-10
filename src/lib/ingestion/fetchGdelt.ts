@@ -32,11 +32,12 @@ const GDELT_ENDPOINT = "https://api.gdeltproject.org/api/v2/doc/doc";
  */
 const REQUEST_SPACING_MS = 10_000;
 /**
- * Pause avant de retenter une requête rate-limitée. Les IPs des runners GitHub Actions étant
+ * Pauses avant de retenter une requête rate-limitée. Les IPs des runners GitHub Actions étant
  * partagées entre de nombreux utilisateurs, un 429 peut survenir même en respectant
- * REQUEST_SPACING_MS : on laisse la fenêtre de rate-limit se vider avant un unique retry.
+ * REQUEST_SPACING_MS. Constaté en prod (runs 140-141) : 45 s ne suffisent pas toujours,
+ * d'où un second essai après une attente doublée.
  */
-const RATE_LIMIT_RETRY_DELAY_MS = 45_000;
+const RATE_LIMIT_RETRY_DELAYS_MS = [45_000, 90_000];
 // ASCII strict : certains WAF (GDACS, potentiellement GDELT) rejettent les en-têtes accentués.
 const USER_AGENT = "GlobeActu/0.1 (open source news aggregator)";
 
@@ -91,6 +92,19 @@ async function runQuery(definition: GdeltQueryDefinition): Promise<ExternalArtic
     }));
 }
 
+/** Exécute une requête en laissant la fenêtre de rate-limit se vider entre chaque essai. */
+async function runQueryWithRetries(definition: GdeltQueryDefinition): Promise<ExternalArticle[]> {
+  for (const delayMs of RATE_LIMIT_RETRY_DELAYS_MS) {
+    try {
+      return await runQuery(definition);
+    } catch (error) {
+      if (!(error instanceof RateLimitError)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+  return runQuery(definition);
+}
+
 /**
  * Exécute séquentiellement les requêtes GDELT configurées, en respectant le rate-limit
  * (une requête toutes les REQUEST_SPACING_MS). Une requête en échec n'interrompt pas les autres.
@@ -103,22 +117,10 @@ export async function fetchGdeltArticles(): Promise<ExternalArticle[]> {
   for (const [index, definition] of queries.entries()) {
     if (index > 0) await new Promise((resolve) => setTimeout(resolve, REQUEST_SPACING_MS));
     try {
-      articles.push(...(await runQuery(definition)));
+      articles.push(...(await runQueryWithRetries(definition)));
     } catch (error) {
-      if (!(error instanceof RateLimitError)) {
-        console.error(`[fetchGdeltArticles] échec pour la requête "${definition.label}":`, error);
-        continue;
-      }
-      // Rate-limité : on laisse la fenêtre se vider puis on retente une seule fois.
-      await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_RETRY_DELAY_MS));
-      try {
-        articles.push(...(await runQuery(definition)));
-      } catch (retryError) {
-        console.error(
-          `[fetchGdeltArticles] échec pour la requête "${definition.label}" (après retry rate-limit):`,
-          retryError,
-        );
-      }
+      const suffix = error instanceof RateLimitError ? " (après retries rate-limit)" : "";
+      console.error(`[fetchGdeltArticles] échec pour la requête "${definition.label}"${suffix}:`, error);
     }
   }
 

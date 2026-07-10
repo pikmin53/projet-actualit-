@@ -17,8 +17,9 @@ jobs:
   ingest:
     runs-on: ubuntu-latest
     # Coupe les runs bloqués : sans cette borne, un fetch qui pend peut tourner 6 h
-    # (défaut GitHub) et brûler le quota de minutes du compte (repo privé = 2000 min/mois).
-    timeout-minutes: 15
+    # (défaut GitHub) et brûler le quota de minutes du compte. 25 min car un run normal
+    # (~2000 articles + retries rate-limit GDELT/Reddit) dépasse parfois les 15 min.
+    timeout-minutes: 25
     # DATABASE_URL au niveau du job : nécessaire à la fois pour `prisma migrate deploy`
     # et pour l'ingestion elle-même.
     env:
