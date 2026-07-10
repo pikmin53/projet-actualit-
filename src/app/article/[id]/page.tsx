@@ -9,12 +9,14 @@ import { topKeywords } from "@/lib/nlp/keywords";
 import type { Interpretation } from "@/lib/types";
 
 interface ArticlePageProps {
-  params: { id: string };
+  // Promise depuis Next 15 : les paramètres de route se résolvent de façon asynchrone.
+  params: Promise<{ id: string }>;
 }
 
 /** Page de détail d'un article : résumé, interprétation IA neutre, et liste des sources du cluster. */
 export default async function ArticlePage({ params }: ArticlePageProps) {
-  const article = await getArticleById(params.id);
+  const { id } = await params;
+  const article = await getArticleById(id);
   if (!article) notFound();
 
   const interpretation: Interpretation | null = article.eventCluster

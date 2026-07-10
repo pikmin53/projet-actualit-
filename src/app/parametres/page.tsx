@@ -48,6 +48,8 @@ export default function ParametresPage() {
   const applyTheme = (id: ThemeId) => {
     setTheme(id);
     localStorage.setItem(STORAGE_KEY, id);
+    // Mutation DOM volontaire dans un gestionnaire d'évènement (bascule de thème globale).
+    // eslint-disable-next-line react-hooks/immutability
     document.documentElement.dataset.theme = id;
   };
 

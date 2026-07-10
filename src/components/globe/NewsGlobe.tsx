@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 import type ReactGlobeGl from "react-globe.gl";
 import { CATEGORY_COLORS } from "@/lib/categoryColors";
 
@@ -87,7 +87,7 @@ function useActiveTheme(): string {
  */
 export default function NewsGlobe({ points, selectedId, onSelectPoint }: NewsGlobeProps) {
   const [GlobeComponent, setGlobeComponent] = useState<typeof ReactGlobeGl | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const globeRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -184,7 +184,7 @@ export default function NewsGlobe({ points, selectedId, onSelectPoint }: NewsGlo
           pointAltitude={(p: object) => 0.02 + Math.min((p as GlobePoint).popularityScore, 10) / 100}
           pointRadius={(p: object) => ((p as GlobePoint).id === selectedId ? 0.6 : 0.35)}
           pointLabel={(p: object) => (p as GlobePoint).title}
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           onPointClick={(p: any) => onSelectPoint(p.id)}
           ringsData={ringPoints}
           ringLat="lat"

@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { withPublicApi, publicApiOptionsHandler } from "@/lib/api/withPublicApi";
 import { deleteCustomSource, setCustomSourceEnabled } from "@/lib/db/queries";
 
-type RouteContext = { params: { id: string } };
+// Promise depuis Next 15 : les paramètres de route se résolvent de façon asynchrone.
+type RouteContext = { params: Promise<{ id: string }> };
 
 /**
  * PATCH /api/v1/sources/:id
@@ -15,7 +16,8 @@ export const PATCH = withPublicApi<RouteContext>(async (req: NextRequest, { para
     return NextResponse.json({ error: "Body attendu : { enabled: boolean }." }, { status: 400 });
   }
 
-  const source = await setCustomSourceEnabled(params.id, body.enabled);
+  const { id } = await params;
+  const source = await setCustomSourceEnabled(id, body.enabled);
   if (!source) {
     return NextResponse.json({ error: "Source personnalisée introuvable." }, { status: 404 });
   }
@@ -29,7 +31,8 @@ export const PATCH = withPublicApi<RouteContext>(async (req: NextRequest, { para
  * Réponse : { outcome: "deleted" | "disabled" }.
  */
 export const DELETE = withPublicApi<RouteContext>(async (_req: NextRequest, { params }) => {
-  const outcome = await deleteCustomSource(params.id);
+  const { id } = await params;
+  const outcome = await deleteCustomSource(id);
   if (!outcome) {
     return NextResponse.json({ error: "Source personnalisée introuvable." }, { status: 404 });
   }

@@ -13,7 +13,7 @@ import type { SummarizerProvider } from "./types";
  * pour brancher un autre modèle local (il suffit de changer le nom de modèle ci-dessous).
  */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 let pipelinePromise: Promise<any> | null = null;
 
 async function getPipeline() {
