@@ -8,7 +8,9 @@
     "discord", "steam", "paypal", "amazon", "netflix", "spotify",
     "orange", "free mobile", "sfr", "bouygues telecom",
     "crédit agricole", "bnp paribas", "société générale", "caisse d'épargne", "banque postale", "boursorama",
-    "ameli", "impots.gouv", "france travail", "franceconnect", "doctolib"
+    "ameli", "impots.gouv", "france travail", "franceconnect", "doctolib",
+    "sncf", "ratp", "air france", "edf", "enedis", "engie", "totalenergies", "veolia",
+    "la poste", "carrefour", "leclerc", "auchan", "intermarché", "fnac", "decathlon"
   ],
   "majorCountries": [
     "france", "united states", "états-unis", "etats-unis", "royaume-uni", "united kingdom",

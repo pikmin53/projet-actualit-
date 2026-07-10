@@ -50,6 +50,9 @@
   { "name": "The Record (Recorded Future)", "homepage": "https://therecord.media", "rssUrl": "https://therecord.media/feed/", "country": "US", "language": "en" },
   { "name": "SecurityWeek", "homepage": "https://www.securityweek.com", "rssUrl": "https://www.securityweek.com/feed/", "country": "US", "language": "en" },
   { "name": "CERT-FR Alertes", "homepage": "https://www.cert.ssi.gouv.fr/alerte/", "rssUrl": "https://www.cert.ssi.gouv.fr/alerte/feed/", "country": "FR", "language": "fr" },
+  { "name": "CERT-FR Actualités", "homepage": "https://www.cert.ssi.gouv.fr/actualite/", "rssUrl": "https://www.cert.ssi.gouv.fr/actualite/feed/", "country": "FR", "language": "fr" },
+  { "name": "CISA Advisories", "homepage": "https://www.cisa.gov/news-events/cybersecurity-advisories", "rssUrl": "https://www.cisa.gov/cybersecurity-advisories/all.xml", "country": "US", "language": "en" },
+  { "name": "LeMagIT", "homepage": "https://www.lemagit.fr", "rssUrl": "https://www.lemagit.fr/rss/ContentSyndication.xml", "country": "FR", "language": "fr" },
   { "name": "Numerama Cyberguerre", "homepage": "https://www.numerama.com/cyberguerre/", "rssUrl": "https://www.numerama.com/cyberguerre/feed/", "country": "FR", "language": "fr" },
   { "name": "Zataz", "homepage": "https://www.zataz.com", "rssUrl": "https://www.zataz.com/feed/", "country": "FR", "language": "fr" }
 ]

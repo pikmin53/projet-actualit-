@@ -14,7 +14,7 @@ import { fetchApiArticles, type ExternalArticle } from "@/lib/ingestion/fetchNew
 import { fetchGoogleNewsArticles } from "@/lib/ingestion/fetchGoogleNews";
 import { fetchGdeltArticles } from "@/lib/ingestion/fetchGdelt";
 import { fetchAlertArticles } from "@/lib/ingestion/fetchAlerts";
-import { fetchSocialPosts, socialConfig } from "@/lib/ingestion/fetchSocial";
+import { fetchSocialPosts, socialConfig, type SocialPost } from "@/lib/ingestion/fetchSocial";
 import { fetchScienceArticles } from "@/lib/ingestion/fetchScience";
 import { fetchArticleBody, ENRICH_MIN_CONTENT_LENGTH } from "@/lib/ingestion/enrichContent";
 import { normalizeArticle } from "@/lib/ingestion/normalize";
@@ -34,7 +34,7 @@ import {
   findRecentClusters,
   createCluster,
   updateClusterInterpretation,
-  articleExists,
+  findExistingArticleUrls,
   createArticle,
   countDistinctSourcesInCluster,
   updateClusterSignals,
@@ -75,9 +75,17 @@ function syntheticFeedFor(sourceName: string, homepage: string): RssFeedDefiniti
 
 /** Convertit des articles externes (API, Google News, GDELT) en RawArticle avec Source en base. */
 async function externalToRaw(externalArticles: ExternalArticle[]): Promise<RawArticle[]> {
+  // Une seule écriture Source par flux synthétique et par passe : des centaines d'articles
+  // externes partagent la même source, et chaque upsert unitaire coûte un aller-retour Neon.
+  const sourceCache = new Map<string, Awaited<ReturnType<typeof upsertSource>>>();
   const raw: RawArticle[] = [];
   for (const ext of externalArticles) {
-    const source = await upsertSource(syntheticFeedFor(ext.sourceName, ext.sourceHomepage));
+    const feed = syntheticFeedFor(ext.sourceName, ext.sourceHomepage);
+    let source = sourceCache.get(feed.rssUrl);
+    if (!source) {
+      source = await upsertSource(feed);
+      sourceCache.set(feed.rssUrl, source);
+    }
     raw.push({
       sourceId: source.id,
       sourceName: source.name,
@@ -213,8 +221,7 @@ const MAX_ENRICHMENTS_PER_RUN = 40;
  * clustering d'articles), et purge les candidats expirés jamais confirmés. Un signal social seul
  * n'est jamais publié — voir docs/strategie/extension-sources.md.
  */
-async function processSocialSignals() {
-  const posts = await fetchSocialPosts();
+async function processSocialSignals(posts: SocialPost[]) {
   const expiresAt = new Date(Date.now() + socialConfig.confirmationWindowHours * 60 * 60 * 1000);
 
   let newSignals = 0;
@@ -254,11 +261,16 @@ async function processSocialSignals() {
 
 async function run() {
   console.log("[ingest] Récupération des articles bruts...");
-  const raw = await collectRawArticles();
+  // Les posts sociaux (réseau uniquement, avec ses pauses anti rate-limit Reddit) partent en
+  // parallèle de la collecte presse : les sortir du chemin critique économise plusieurs minutes
+  // sur le budget du job CI. Leur confirmation par la presse reste après l'écriture des articles.
+  const [raw, socialPosts] = await Promise.all([collectRawArticles(), fetchSocialPosts()]);
   console.log(`[ingest] ${raw.length} articles récupérés avant dédoublonnage.`);
 
   const deduped = dedupeArticles(raw.map(normalizeArticle));
   console.log(`[ingest] ${deduped.length} articles après dédoublonnage.`);
+
+  const existingUrls = await findExistingArticleUrls(deduped.map((a) => a.url));
 
   const summarizer = getSummarizer();
   let created = 0;
@@ -266,7 +278,7 @@ async function run() {
   let enriched = 0;
 
   for (const article of deduped) {
-    if (await articleExists(article.url)) {
+    if (existingUrls.has(article.url)) {
       skipped += 1;
       continue;
     }
@@ -317,7 +329,7 @@ async function run() {
     created += 1;
   }
 
-  await processSocialSignals();
+  await processSocialSignals(socialPosts);
 
   const clearedBreaking = await clearStaleBreakingClusters(VELOCITY_WINDOW_HOURS);
   console.log(

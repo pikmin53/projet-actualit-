@@ -42,23 +42,30 @@ interface RedditAtomItem {
  * mais les flux RSS/Atom restent ouverts : on passe par eux (pas de score d'upvotes, mais le
  * listing "rising" est déjà un filtre de qualité côté Reddit).
  */
-const redditParser: Parser<object, RedditAtomItem> = new Parser({
-  timeout: 15000,
-  headers: { "User-Agent": "GlobeActu/0.1 (open source news aggregator)" },
-});
+const redditParser: Parser<object, RedditAtomItem> = new Parser();
 
+/**
+ * User-Agent au format recommandé par Reddit (<plateforme>:<app>:<version>) : les UA
+ * génériques sont rate-limités plus agressivement que les clients identifiés.
+ */
+const USER_AGENT = "web:globe-actu:v0.1 (news aggregator; +https://github.com/pikmin53/projet-actualit-)";
+const FETCH_TIMEOUT_MS = 15_000;
 /**
  * Espacement entre subreddits. Les IPs partagées des runners GitHub Actions épuisent vite
  * le budget non authentifié de Reddit : constaté en prod (runs 138-140), 5 s ne suffisaient
  * pas — seuls les 1-2 premiers subreddits passaient avant une rafale de 429.
  */
 const SUBREDDIT_SPACING_MS = 10_000;
-/** Pause avant l'unique retry après un 429, le temps que la fenêtre de rate-limit se vide. */
+/** Pause par défaut avant l'unique retry après un 429, si Reddit n'envoie pas de Retry-After. */
 const RATE_LIMIT_RETRY_DELAY_MS = 30_000;
+/** Borne du délai accepté depuis Retry-After : au-delà, inutile de bloquer le job CI. */
+const RATE_LIMIT_RETRY_MAX_MS = 60_000;
 
-/** rss-parser ne propage que le message ("Status code 429"), pas le statut HTTP. */
-function isRateLimitError(error: unknown): boolean {
-  return error instanceof Error && error.message.includes("Status code 429");
+/** Reddit a répondu 429 ; `retryAfterMs` reprend le Retry-After/X-Ratelimit-Reset du serveur. */
+class RedditRateLimitError extends Error {
+  constructor(readonly retryAfterMs?: number) {
+    super("Reddit a répondu 429");
+  }
 }
 
 /** Extrait l'URL de l'article externe depuis le HTML du post Reddit (lien "[link]"). */
@@ -72,9 +79,30 @@ function externalUrlFrom(content: string | undefined): string | undefined {
 
 async function fetchSubreddit(subreddit: string): Promise<SocialPost[]> {
   const { listing, limitPerSubreddit } = socialConfig.reddit;
-  const feed = await redditParser.parseURL(
-    `https://www.reddit.com/r/${subreddit}/${listing}.rss?limit=${limitPerSubreddit}`
+  // fetch manuel plutôt que parser.parseURL : rss-parser masque les en-têtes de réponse,
+  // or Reddit annonce son délai de déblocage via Retry-After / X-Ratelimit-Reset.
+  const response = await fetch(
+    `https://www.reddit.com/r/${subreddit}/${listing}.rss?limit=${limitPerSubreddit}`,
+    {
+      headers: {
+        "User-Agent": USER_AGENT,
+        Accept: "application/atom+xml, application/rss+xml, application/xml, text/xml",
+      },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    }
   );
+  if (response.status === 429) {
+    const retryAfterSeconds = Number(
+      response.headers.get("retry-after") ?? response.headers.get("x-ratelimit-reset")
+    );
+    throw new RedditRateLimitError(
+      Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+        ? Math.min(retryAfterSeconds * 1000, RATE_LIMIT_RETRY_MAX_MS)
+        : undefined
+    );
+  }
+  if (!response.ok) throw new Error(`Reddit a répondu ${response.status}`);
+  const feed = await redditParser.parseString(await response.text());
 
   return (feed.items ?? [])
     .filter((item) => item.title && item.link)
@@ -103,11 +131,14 @@ export async function fetchSocialPosts(): Promise<SocialPost[]> {
     try {
       posts.push(...(await fetchSubreddit(subreddit)));
     } catch (error) {
-      if (!isRateLimitError(error)) {
+      if (!(error instanceof RedditRateLimitError)) {
         console.error(`[fetchSocialPosts] échec pour r/${subreddit}:`, error);
         continue;
       }
-      await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_RETRY_DELAY_MS));
+      // On honore le délai annoncé par Reddit s'il existe, sinon pause par défaut.
+      await new Promise((resolve) =>
+        setTimeout(resolve, error.retryAfterMs ?? RATE_LIMIT_RETRY_DELAY_MS)
+      );
       try {
         posts.push(...(await fetchSubreddit(subreddit)));
       } catch (retryError) {

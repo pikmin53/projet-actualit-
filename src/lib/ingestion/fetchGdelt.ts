@@ -13,6 +13,8 @@ interface GdeltQueryDefinition {
   query: string;
   /** Fenêtre temporelle GDELT, ex: "2h", "1d". Défaut: "2h". */
   timespan?: string;
+  /** Nombre maximal d'articles renvoyés (max GDELT : 250). Défaut : 50. */
+  maxrecords?: number;
 }
 
 interface GdeltArticle {
@@ -34,15 +36,35 @@ const REQUEST_SPACING_MS = 10_000;
 /**
  * Pauses avant de retenter une requête rate-limitée. Les IPs des runners GitHub Actions étant
  * partagées entre de nombreux utilisateurs, un 429 peut survenir même en respectant
- * REQUEST_SPACING_MS. Constaté en prod (runs 140-141) : 45 s ne suffisent pas toujours,
- * d'où un second essai après une attente doublée.
+ * REQUEST_SPACING_MS. Constaté en prod (runs 140-142) : 45 s ne suffisent pas toujours,
+ * d'où un second essai après une attente doublée. Un jitter de ±20 % désynchronise les clients
+ * qui partagent la même IP (et donc la même fenêtre de rate-limit).
  */
 const RATE_LIMIT_RETRY_DELAYS_MS = [45_000, 90_000];
+/** Pause avant l'unique retry d'un échec réseau transitoire (ConnectTimeout des runners, runs 141-142). */
+const NETWORK_RETRY_DELAY_MS = 5_000;
 // ASCII strict : certains WAF (GDACS, potentiellement GDELT) rejettent les en-têtes accentués.
 const USER_AGENT = "GlobeActu/0.1 (open source news aggregator)";
 
 /** Dépassement du rate-limit GDELT (429 explicite ou message texte avec statut 200). */
-class RateLimitError extends Error {}
+class RateLimitError extends Error {
+  /** Délai demandé par le serveur via Retry-After, si fourni. */
+  constructor(message: string, readonly retryAfterMs?: number) {
+    super(message);
+  }
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function withJitter(ms: number): number {
+  return Math.round(ms * (0.8 + Math.random() * 0.4));
+}
+
+/** Échec réseau transitoire : timeout de connexion/lecture ou coupure TLS, sans réponse HTTP. */
+function isTransientNetworkError(error: unknown): boolean {
+  if (error instanceof DOMException && error.name === "TimeoutError") return true;
+  return error instanceof TypeError && error.message === "fetch failed";
+}
 
 /** Convertit un seendate GDELT ("20260703T012000Z") en Date. */
 function parseSeenDate(seendate: string | undefined): Date {
@@ -61,7 +83,7 @@ async function runQuery(definition: GdeltQueryDefinition): Promise<ExternalArtic
     query: definition.query,
     mode: "ArtList",
     format: "json",
-    maxrecords: "50",
+    maxrecords: String(definition.maxrecords ?? 50),
     timespan: definition.timespan ?? "2h",
   });
 
@@ -69,7 +91,13 @@ async function runQuery(definition: GdeltQueryDefinition): Promise<ExternalArtic
     headers: { "User-Agent": USER_AGENT },
     signal: AbortSignal.timeout(20_000),
   });
-  if (response.status === 429) throw new RateLimitError(`GDELT a répondu 429`);
+  if (response.status === 429) {
+    const retryAfterSeconds = Number(response.headers.get("retry-after"));
+    throw new RateLimitError(
+      `GDELT a répondu 429`,
+      Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0 ? retryAfterSeconds * 1000 : undefined,
+    );
+  }
   if (!response.ok) throw new Error(`GDELT a répondu ${response.status}`);
 
   const body = await response.text();
@@ -92,17 +120,32 @@ async function runQuery(definition: GdeltQueryDefinition): Promise<ExternalArtic
     }));
 }
 
-/** Exécute une requête en laissant la fenêtre de rate-limit se vider entre chaque essai. */
+/**
+ * Exécute une requête avec retries : les 429 attendent la fin de la fenêtre de rate-limit
+ * (délai Retry-After du serveur si fourni, sinon backoff avec jitter), les échecs réseau
+ * transitoires sont retentés une fois rapidement.
+ */
 async function runQueryWithRetries(definition: GdeltQueryDefinition): Promise<ExternalArticle[]> {
-  for (const delayMs of RATE_LIMIT_RETRY_DELAYS_MS) {
+  let rateLimitRetries = 0;
+  let networkRetries = 0;
+  for (;;) {
     try {
       return await runQuery(definition);
     } catch (error) {
-      if (!(error instanceof RateLimitError)) throw error;
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      if (error instanceof RateLimitError && rateLimitRetries < RATE_LIMIT_RETRY_DELAYS_MS.length) {
+        const delayMs = error.retryAfterMs ?? withJitter(RATE_LIMIT_RETRY_DELAYS_MS[rateLimitRetries]);
+        rateLimitRetries += 1;
+        await sleep(delayMs);
+        continue;
+      }
+      if (isTransientNetworkError(error) && networkRetries < 1) {
+        networkRetries += 1;
+        await sleep(NETWORK_RETRY_DELAY_MS);
+        continue;
+      }
+      throw error;
     }
   }
-  return runQuery(definition);
 }
 
 /**

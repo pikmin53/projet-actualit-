@@ -21,9 +21,20 @@ export interface FeedSource {
  * @returns Les articles du flux convertis en `RawArticle`. Tableau vide en cas d'échec réseau/parsing
  *          (une source en panne ne doit pas interrompre l'ingestion des autres sources).
  */
+/** Pause avant l'unique retry d'un flux en échec (timeouts transitoires fréquents en CI). */
+const RETRY_DELAY_MS = 3_000;
+
 export async function fetchRssArticles(source: FeedSource): Promise<RawArticle[]> {
   try {
-    const feed = await parser.parseURL(source.rssUrl);
+    let feed;
+    try {
+      feed = await parser.parseURL(source.rssUrl);
+    } catch {
+      // Un seul retry rapide : les échecs observés en prod (read ETIMEDOUT, resets TLS)
+      // sont transitoires, et les flux sont interrogés en parallèle donc le coût est borné.
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+      feed = await parser.parseURL(source.rssUrl);
+    }
     return (feed.items ?? [])
       .filter((item) => item.link && item.title)
       .map((item) => ({

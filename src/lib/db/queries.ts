@@ -218,6 +218,24 @@ export async function articleExists(url: string): Promise<boolean> {
   return existing !== null;
 }
 
+/**
+ * Renvoie, parmi `urls`, celles déjà présentes en base — par lots plutôt qu'un aller-retour
+ * par article : à ~2000 URLs par passe d'ingestion, les requêtes unitaires coûtaient
+ * plusieurs minutes de latence réseau cumulée (voir scripts/ingest.ts).
+ */
+export async function findExistingArticleUrls(urls: string[]): Promise<Set<string>> {
+  const existing = new Set<string>();
+  const CHUNK_SIZE = 500;
+  for (let i = 0; i < urls.length; i += CHUNK_SIZE) {
+    const rows = await prisma.article.findMany({
+      where: { url: { in: urls.slice(i, i + CHUNK_SIZE) } },
+      select: { url: true },
+    });
+    for (const row of rows) existing.add(row.url);
+  }
+  return existing;
+}
+
 /** Crée un nouvel article. Suppose que `articleExists` a déjà été vérifié par l'appelant. */
 export async function createArticle(data: {
   sourceId: string;
