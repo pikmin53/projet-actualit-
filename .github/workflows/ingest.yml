@@ -50,7 +50,15 @@ jobs:
         run: npx prisma generate
 
       - name: Appliquer les migrations en attente
-        run: npx prisma migrate deploy
+        # Neon suspend son compute après inactivité : la première connexion peut tomber en
+        # P1001 le temps du réveil (vu run 143). On retente avant de déclarer l'échec.
+        run: |
+          for i in 1 2 3; do
+            npx prisma migrate deploy && exit 0
+            echo "migrate deploy en échec (tentative $i/3), nouvel essai dans 15 s..."
+            sleep 15
+          done
+          exit 1
 
       - name: Lancer l'ingestion
         run: npm run ingest
